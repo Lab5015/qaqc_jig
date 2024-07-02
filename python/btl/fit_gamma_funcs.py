@@ -91,8 +91,8 @@ def fit_gamma(h, eng, offset=0, offset_sigma=10):
     f.SetParameter(0, (peak-offset)/eng)
     f.SetParameter(1, 0.08*peak/eng)
     f.SetParameter(2, h.GetBinContent(h.FindBin(peak)))
-    f.SetParLimits(1,0.,100.)
-    r = h.Fit(f, 'Q0LSB',  '', 0.85*peak, 1.15*peak)
+    #f.SetParRange(1,0.,100.)
+    r = h.Fit(f, 'QLSB+',  '', 0.85*peak, 1.15*peak)
     #h.Write()
     
     # Secondary fit that limits the range to +/-1.5 sigma. This makes the model
@@ -111,9 +111,6 @@ def fit_gamma(h, eng, offset=0, offset_sigma=10):
     if 'nullptr' in str(r):
        print('Fit failed, null pointer')
        return None
-    #if r.Get().IsValid():
-    #    print('Fit failed') 
-    #    return None  
     
     # Use commented return statement for linear background model because it
     # adds 2 more parameters. 

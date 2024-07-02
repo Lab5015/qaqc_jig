@@ -92,6 +92,11 @@ def plot_hist(h, path=None, filename=None, logy=False):
     if not filename or not path:
         print('No path / filename specified; can not print pdf!')
     else:
+        # simona
+        # dir_path = os.path.dirname(f"{path}/{filename}")
+        # if not os.path.exists(dir_path):
+        #     print(f"Creating directory {dir_path}")
+        #     os.makedirs(dir_path)
         root, ext = os.path.splitext(filename)
         if not os.path.isdir("%s/%s"%(path,root)):
             os.mkdir("%s/%s"%(path,root))

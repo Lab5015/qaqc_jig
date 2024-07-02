@@ -1243,13 +1243,13 @@ void get_dset_name(char *name, int channel, int channel_map)
              * from the second side of the module and go "backwards" as
              * compared to the first side.  See the file test_channel_map.py
              * for testing to make sure it behaves as expected. */
-            sprintf(name, "ch%i", (7 - (channel % 8) + 16));
+            sprintf(name, "ch%i", (24 + (channel % 8) ));
     } else if (channel_map == 1) {
         /* We're reading out the second half of the module. */
         if (channel <= 7)
             sprintf(name, "ch%i", channel+8);
         else
-            sprintf(name, "ch%i", (7 - (channel % 8) + 24));
+            sprintf(name, "ch%i", (16 + (channel % 8) ));
     }
 }
 
@@ -1753,9 +1753,11 @@ WaveDumpConfig_t get_default_settings() {
 
     /* Set corrections to "AUTO" */
     WDcfg.useCorrections = -1;
-    //int UseManualTables;
-
-    //char TablesFilenames[MAX_X742_GROUP_SIZE][1000];
+    //WDcfg.useCorrections = 1;
+    /* Set corrections to "MANUAL" */
+    //WDcfg.UseManualTables = 3;
+    //strncpy(WDcfg.TablesFilenames[0], "X742Table_user_gr0", 1000);
+    //strncpy(WDcfg.TablesFilenames[1], "X742Table_user_gr1", 1000);
 
     /* Set DRS4 Frequency.  Values:
      *   0 = 5 GHz
@@ -2069,40 +2071,49 @@ int main(int argc, char *argv[])
 
         // Reload Correction Tables if changed
         if(BoardInfo.FamilyCode == CAEN_DGTZ_XX742_FAMILY_CODE && (ReloadCfgStatus & (0x1 << CFGRELOAD_CORRTABLES_BIT)) ) {
-            if(WDcfg.useCorrections != -1) { // Use Manual Corrections
-                uint32_t GroupMask = 0;
 
+	    if(WDcfg.useCorrections != -1) { // Use Manual Corrections
+                uint32_t GroupMask = 0;
+		
                 // Disable Automatic Corrections
                 if ((ret = CAEN_DGTZ_DisableDRS4Correction(handle)) != CAEN_DGTZ_Success)
                     goto QuitProgram;
-
+		
                 // Load the Correction Tables from the Digitizer flash
                 if ((ret = CAEN_DGTZ_GetCorrectionTables(handle, WDcfg.DRS4Frequency, (void*)X742Tables)) != CAEN_DGTZ_Success)
                     goto QuitProgram;
-
+		
                 if(WDcfg.UseManualTables != -1) { // The user wants to use some custom tables
                     uint32_t gr;
-                                        int32_t clret;
-                                        
+		    int32_t clret;
+		    
                     GroupMask = WDcfg.UseManualTables;
-
+		    
                     for(gr = 0; gr < WDcfg.MaxGroupNumber; gr++) {
                         if (((GroupMask>>gr)&0x1) == 0)
                             continue;
+			printf("Loading tables for group %u\n",gr);
                         if ((clret = LoadCorrectionTable(WDcfg.TablesFilenames[gr], &(X742Tables[gr]))) != 0)
                             printf("Error [%d] loading custom table from file '%s' for group [%u].\n", clret, WDcfg.TablesFilenames[gr], gr);
+			if ((ret = CAEN_DGTZ_EnableDRS4Correction(handle)) != CAEN_DGTZ_Success)
+			  goto QuitProgram;
+			SaveCorrectionTables("X742Table_dump", GroupMask, X742Tables);
                     }
                 }
-                // Save to file the Tables read from flash
-                GroupMask = (~GroupMask) & ((0x1<<WDcfg.MaxGroupNumber)-1);
-                SaveCorrectionTables("X742Table", GroupMask, X742Tables);
-            }
+            } // Use Manual Corrections
+	    
             else { // Use Automatic Corrections
-                if ((ret = CAEN_DGTZ_LoadDRS4CorrectionData(handle, WDcfg.DRS4Frequency)) != CAEN_DGTZ_Success)
+	      if ((ret = CAEN_DGTZ_LoadDRS4CorrectionData(handle, WDcfg.DRS4Frequency)) != CAEN_DGTZ_Success)
                     goto QuitProgram;
                 if ((ret = CAEN_DGTZ_EnableDRS4Correction(handle)) != CAEN_DGTZ_Success)
                     goto QuitProgram;
-            }
+                if ((ret = CAEN_DGTZ_GetCorrectionTables(handle, WDcfg.DRS4Frequency, (void*)X742Tables)) != CAEN_DGTZ_Success)
+		    goto QuitProgram;
+                uint32_t GroupMask = (~GroupMask) & ((0x1<<WDcfg.MaxGroupNumber)-1);
+                SaveCorrectionTables("X742Table_flash", GroupMask, X742Tables);
+		printf("Saving flash memory correction tables\n");
+            } // User Automatic corrections
+	    
         }
     }
 
