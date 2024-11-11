@@ -5,6 +5,16 @@ import ROOT
 
 FIT_OPTIONS = 'LSB' 
 
+
+def GetHWHM(h,peak):
+    for ibin in range(h.GetNbinsX()+1):
+        if h.GetBinCenter(ibin) < peak:
+            continue
+        if  h.GetBinContent(ibin) <= 0.5*h.GetBinContent(h.FindBin(peak)):
+            return h.GetBinCenter(ibin) - h.GetBinCenter(h.FindBin(peak))
+    return -1.
+
+
 def ROOT_peaks(h, width=10, height=0.05, npeaks=4, options="", sort=True):
     """
     Finds peaks in hisogram `h`. `height` is measured as a fraction of the
@@ -52,7 +62,7 @@ def fit_gamma(h, eng, offset=0, offset_sigma=10):
     nPeaks = 3
 
     h.GetXaxis().SetRangeUser(300.,h.GetBinCenter(h.GetNbinsX()-1))
-    _ ,peak = ROOT_peaks(h,width=10,height=0.2,npeaks=nPeaks,options='nobackground')
+    _ ,peak = ROOT_peaks(h,width=10,height=0.2,npeaks=nPeaks,options='nobackground',sort=False)
     if (peak == None): peak = 1300
     h.GetXaxis().SetRangeUser(0.,h.GetBinCenter(h.GetNbinsX()-1))
     
@@ -85,12 +95,11 @@ def fit_gamma(h, eng, offset=0, offset_sigma=10):
     
     
     # Gaussian + linear background
-    f = ROOT.TF1(f"{h.GetName()}_fit",f"[2]*exp(-0.5*(x-{offset}-[0]*{eng})**2/([1]*{eng})**2)", peak*0.5, peak*1.5)
-    sigma = h.GetRMS()
+    f = ROOT.TF1(f"{h.GetName()}_fit",f"[2]*exp(-0.5*(x-{offset}-[0]*{eng})**2/([1]*{eng})**2)", peak*0.8, peak*1.2)
     f.SetNpx(10000)
     f.SetLineColor(ROOT.kTeal)
     f.SetParameter(0, (peak-offset)/eng)
-    f.SetParameter(1, 0.08*peak/eng)
+    f.SetParameter(1,  2.*GetHWHM(h,peak)/2.36/eng)
     f.SetParameter(2, h.GetBinContent(h.FindBin(peak)))
     f.SetParLimits(1,0.,100.)
     r = h.Fit(f, 'QLSB0',  '', 0.9*peak, 1.1*peak)
@@ -103,7 +112,7 @@ def fit_gamma(h, eng, offset=0, offset_sigma=10):
     # reasons.
     
     f.SetLineColor(ROOT.kGreen)
-    r = h.Fit(f, 'QLSB+', '', offset+eng*f.GetParameter(0) - 0.75*eng*abs(f.GetParameter(1)), offset+eng*f.GetParameter(0) + 1.*eng*abs(f.GetParameter(1)))
+    r = h.Fit(f, 'QLSB+', '', offset+eng*f.GetParameter(0) - 1.*eng*abs(f.GetParameter(1)), offset+eng*f.GetParameter(0) + 1.*eng*abs(f.GetParameter(1)))
     f.Write()
 
     if 'nullptr' in str(r):
@@ -125,20 +134,20 @@ def fit_offset(h):
     Returns the fit parameters.
     """
     peak = h.GetBinCenter(h.GetMaximumBin())
-    sigma = h.GetRMS()
     # FIXME: Gaussian noise model is just a guess. However, we really only need
     # the average noise, which a narrow Gaussian can roughly estimate.
-    f = ROOT.TF1(f"{h.GetName()}_offset_fit", "gaus", -100, 100)
+    f = ROOT.TF1(f"{h.GetName()}_offset_fit", "gaus", -50., 50.)
     f.SetNpx(10000)
-    f.SetLineColor(ROOT.kRed)
+    f.SetLineColor(ROOT.kGreen)
     f.SetParameter(1, peak)
-    f.SetParameter(2, sigma)
+    f.SetParameter(2, 2.*GetHWHM(h,peak)/2.36)
     f.SetParameter(0, h.GetBinContent(h.FindBin(peak)))
-    r = h.Fit(f, 'Q0RLSB', '', peak-sigma, peak+sigma)
+    r = h.Fit(f, 'QLSB0', '', peak-25., peak+25.)
     #h.Write()
     
     # Secondary fit that we limit to +/-1 sigma. 
-    r = h.Fit(f, 'QRLSB+', '', f.GetParameter(1) - abs(f.GetParameter(2)), f.GetParameter(1) + abs(f.GetParameter(2)))
+    f.SetLineColor(ROOT.kGreen)
+    r = h.Fit(f, 'QLSB+', '', f.GetParameter(1) - abs(f.GetParameter(2)), f.GetParameter(1) + abs(f.GetParameter(2)))
     f.Write()
     #h.Write()
     

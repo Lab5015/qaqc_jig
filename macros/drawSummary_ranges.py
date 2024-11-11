@@ -11,31 +11,9 @@ import time
 import ROOT
 import tdrstyle
 
-#from typing import NamedTuple
+from collections import OrderedDict
 
-
-data_path = '/data1/SMQAQC/PRODUCTION/'
-selections = []
-#plotDir = '/data1/html/data1/SMQAQC/PRODUCTION/summaryPlots_SMID_42to152/'
-plotDir = '/data1/html/data1/SMQAQC/PRODUCTION/summaryPlots_SMID_1to152/'
-
-
-#runs = ["63-66","85-88","90-93","95-101","104-104"] # 42-152
-runs = ["50-56","63-66","85-88","90-93","95-101","104-104"] # 1-152
-#modules_acc = ["42-152"] # 42-152
-modules_acc = ["1-152"] # 1-152
-
-
-MIN_SPE_ch = 3.4
-MAX_SPE_ch = 4.4
-MIN_LO_bar = 0.90 * 3150.
-MIN_LO_ch = 0.85 * 3150.
-MAX_LO_ASYMM_bar = 0.06
-MIN_LO_ASYMM_ch = -0.15
-MAX_LO_ASYMM_ch = 0.15
-
-nCatA = 0
-nCatB = 0
+from btl_scripts import getListOfSensorModules
 
 #set the tdr style
 tdrstyle.setTDRStyle()
@@ -45,6 +23,49 @@ ROOT.gStyle.SetTitleOffset(1.25,'Y')
 ROOT.gErrorIgnoreLevel = ROOT.kWarning;
 ROOT.gROOT.SetBatch(True)
 #ROOT.gROOT.SetBatch(False)
+
+MIN_SPE_ch = 3.4
+MAX_SPE_ch = 4.4
+MIN_LO_bar = 0.90 * 3150.
+MIN_LO_ch = 0.85 * 3150.
+MAX_LO_ASYMM_bar = 0.06
+MIN_LO_ASYMM_ch = -0.15
+MAX_LO_ASYMM_ch = 0.15
+MAX_RES_bar = 0.06
+
+modules_db = getListOfSensorModules.getListOfSensorModules(location=5380,
+                                                           size = '1000',
+                                                           parent = 'and s.PART_PARENT_ID = 1000',
+                                                           minBarcodeFilter = '',
+                                                           maxBarcodeFilter = '')
+
+
+
+data_path = '/home/cmsdaq/DAQ/qaqc_jig/data/'
+selections = []
+
+#runs = ["11-13","30-32","34-34","36-36","38-38","40-40","46-46","49-58","61-63"]
+#modules_acc = ["200-224"]
+#plotDir = '/data/html/PRODUCTION/sumaryPlots_SMID_201to224/'
+
+#runs = ["106-107"]
+#modules_acc = ["225-248"]
+#plotDir = '/data/html/PRODUCTION/sumaryPlots_SMID_225to248/'
+
+#runs = ["11-13","30-32","34-34","36-36","38-38","40-40","46-46","49-58","61-63","106-107"]
+#modules_acc = ["200-248"]
+#plotDir = '/data/html/PRODUCTION_CALIB/sumaryPlots_SMID_201to248/'
+
+runs = ["11-13","30-32","34-34","36-36","38-38","40-40","46-46","49-58","61-63","106-108","110-110","112-113", "115-117", "119-119", "127-132", "134-136"]
+modules_acc = ["200-451"]
+plotDir = '/data/html/PRODUCTION/sumaryPlots_SMID_201to451/'
+
+#runs = ["136-136"]
+#modules_acc = ["440-451"]
+#plotDir = '/data/html/PRODUCTION/sumaryPlots_SMID_440to451/'
+
+
+
 
 def expand_range(rng):
     numbers = []
@@ -82,15 +103,17 @@ def GetMeanRMS_abs(graph):
     return (htemp.GetMean(),htemp.GetRMS())
 
 
-modules = []
-params = {}
+
+nCatA = 0
+nCatB = 0
+nCatC = 0
+
+params = OrderedDict()
+
 
 # Create a list of all runs
 list_runs = expand_range(runs)
 list_modules = expand_range(modules_acc)
-# string list
-list_runs = list(map(str, list_runs))
-list_modules = list(map(str, list_modules))
 # add barcode
 prefix = "32110020"
 list_modules = ["{}{:06d}".format(prefix, int(mod)) for mod in list_modules]
@@ -106,15 +129,13 @@ for inputFile in inputFiles:
         if 'run' in token:
             run = int(token[3:]) # run number
     # saving in the dict only selected runs and modules
-    if str(run) in list_runs and str(module) in list_modules:
-        if run == 56 and '32110020000030' in module:
-            continue
-        print("run ", run, "  module ", module)
-        modules.append(module)
-        params[module] = [inputFile,run,'GOOD']
+    if int(run) in list_runs and module in list_modules:
+        #print("run ", run, "  module ", module)
+        params[module] = [inputFile,run,-1.,-1.,-1.,-1.,-1.,'cat. A']
 
 if not os.path.isdir(plotDir):
     os.mkdir(plotDir)
+
 
 # creating histos
 h_spe_L_ch = ROOT.TH1F('h_spe_L_ch','',100,3.,5.)
@@ -123,7 +144,7 @@ h_spe_R_ch = ROOT.TH1F('h_spe_R_ch','',100,3.,5.)
 h_LO_avg_bar = ROOT.TH1F('h_LO_avg_bar','',100,1200.,5200.)
 h_LO_L_bar = ROOT.TH1F('h_LO_L_bar','',100,1200.,5200.)
 h_LO_R_bar = ROOT.TH1F('h_LO_R_bar','',100,1200.,5200.)
-h_LO_asymm_bar = ROOT.TH1F('h_LO_asymm_bar','',100,0,0.2)
+h_LO_asymm_bar = ROOT.TH1F('h_LO_asymm_bar','',100,0,0.1)
 
 h_LO_avg_ch = ROOT.TH1F('h_LO_avg_ch','',100,1200.,5200.)
 h_LO_L_ch = ROOT.TH1F('h_LO_L_ch','',100,1200.,5200.)
@@ -136,117 +157,204 @@ h_LOrms_ch = ROOT.TH1F('h_LOrms_ch','',60,0.,30.)
 h_LOmaxvar_bar = ROOT.TH1F('h_LOmaxvar_bar','',50,0.,100.)
 h_LOmaxvar_ch = ROOT.TH1F('h_LOmaxvar_ch','',50,0.,100.)
 
+h_peak_res_L_ch = ROOT.TH1F('h_peak_res_L_ch','',50,0.,0.25)
+h_peak_res_R_ch = ROOT.TH1F('h_peak_res_R_ch','',50,0.,0.25)
+h_peak_res_avg_bar = ROOT.TH1F('h_peak_res_avg_bar','',150,0.,0.15)
+
+g_LO_avg_vs_barcode = ROOT.TGraph()
+g_LO_L_vs_barcode = ROOT.TGraph()
+g_LO_R_vs_barcode = ROOT.TGraph()
+g_LOasymm_avg_vs_barcode = ROOT.TGraph()
+
 
 # selecting the modules to be included in the summary: accept 1 if included, 0 otherwise
-for module in modules:
+sm_lo_dict = {}
+modules = params.keys()
+for module in sorted(modules):
+
     param = params[module]
-    # accept = 1
-    # if param[1] < 50: # measurements re-done after changing module boards
-    #     accept = 0 
-    # elif param[1] > 56 and param[1] < 63: # uniformity tests
-    #     accept = 0 
-    # elif param[1]>67:
-    #     accept = 0
-    
-    # #for selection in selections:
-    # #    tempAccept = 0
-    # #    for param in params:
-    # #        if selection in param:
-    # #            tempAccept = 1
-    # #    accept *= tempAccept
-    # if accept == 0:
-    #     continue
-    
-    print("analyzing ", module,"    --> ",param)
-    
-    
     rootfile = ROOT.TFile(params[module][0],'READ')
     
     # acceptance
     isCatA = True
     isCatB = False
+    isCatC = False
+    nBadCh = 0
+    
+    minLO = 999999.
+    maxAsymm = -999999.
+    maxRes = -999999.
     
     # filling histos
     graph = rootfile.Get('g_spe_L_vs_bar')
     for point in range(graph.GetN()):
         h_spe_L_ch.Fill(graph.GetPointY(point))
         if graph.GetPointY(point) < MIN_SPE_ch or graph.GetPointY(point) > MAX_SPE_ch:
-            isCatB = True
+            #print("failing g_spe_L_vs_bar")
+            isCatC = True
             isCatA = False
     
     graph = rootfile.Get('g_spe_R_vs_bar')
     for point in range(graph.GetN()):
         h_spe_R_ch.Fill(graph.GetPointY(point))
         if graph.GetPointY(point) < MIN_SPE_ch or graph.GetPointY(point) > MAX_SPE_ch:
-            isCatB = True
+            #print("failing g_spe_R_vs_bar")
+            isCatC = True
             isCatA = False
     
     graph = rootfile.Get('g_avg_light_yield_vs_bar')
     h_LO_avg_bar.Fill(GetMeanRMS(graph)[0])
+    sm_lo_dict[module] = GetMeanRMS(graph)[0]
     h_LOrms_bar.Fill(GetMeanRMS(graph)[1]/GetMeanRMS(graph)[0]*100.)
     h_LOmaxvar_bar.Fill(GetMaxVar(graph)/GetMeanRMS(graph)[0]*100.)
     h_LO_avg_ch.Fill(graph.GetPointY(point))
+    g_LO_avg_vs_barcode.SetPoint(g_LO_avg_vs_barcode.GetN(),int(module)-32110020000000,GetMeanRMS(graph)[0])
+    param[2] = GetMeanRMS(graph)[0]
     if GetMeanRMS(graph)[0] < MIN_LO_bar:
-        isCatB = True
+        #print("failing g_avg_light_yield_vs_bar")
+        isCatC = True
         isCatA = False
     for point in range(graph.GetN()):
         h_LO_avg_ch.Fill(graph.GetPointY(point))
         if graph.GetPointY(point) < MIN_LO_bar:
-            isCatB = True
-            isCatA = False
-        
+            #print("failing g_avg_light_yield_vs_ch")
+            nBadCh += 1
+    
     graph = rootfile.Get('g_light_yield_asymm_vs_bar')
     h_LO_asymm_bar.Fill(GetMeanRMS_abs(graph)[0])
-    if GetMeanRMS_abs(graph)[0] > MAX_LO_ASYMM_bar:
-        isCatB = True
-        isCatA = False
-    
+    param[3] = GetMeanRMS_abs(graph)[0]
+    g_LOasymm_avg_vs_barcode.SetPoint(g_LOasymm_avg_vs_barcode.GetN(),int(module)-32110020000000,GetMeanRMS_abs(graph)[0])
+    #if GetMeanRMS_abs(graph)[0] > MAX_LO_ASYMM_bar:
+    #    #print("failing g_light_yield_asymm_vs_bar")
+    #    isCatB = True
+    #    isCatA = False
     for point in range(graph.GetN()):
         h_LO_asymm_ch.Fill(graph.GetPointY(point))
-        if graph.GetPointY(point) < MIN_LO_ASYMM_ch or graph.GetPointY(point) > MAX_LO_ASYMM_ch:
-            isCatB = True
-            isCatA = False
+        if abs(graph.GetPointY(point)) > maxAsymm:
+            maxAsymm = abs(graph.GetPointY(point))
+        #if graph.GetPointY(point) < MIN_LO_ASYMM_ch or graph.GetPointY(point) > MAX_LO_ASYMM_ch:
+        #    #print("failing g_light_yield_asymm_vs_ch")
+        #    isCatB = True
+        #    isCatA = False
             
     graph = rootfile.Get('g_L_light_yield_vs_bar')
     h_LO_L_bar.Fill(GetMeanRMS(graph)[0])
     if GetMeanRMS(graph)[0] < MIN_LO_ch:
-        isCatB = True
+        #print("failing g_L_light_yield_vs_bar")
+        isCatC = True
         isCatA = False
     for point in range(graph.GetN()):
         h_LO_L_ch.Fill(graph.GetPointY(point))
+        if graph.GetPointY(point) < minLO:
+            minLO = graph.GetPointY(point)
         if graph.GetPointY(point) < MIN_LO_ch:
-            isCatB = True
-            isCatA = False
+            #print("failing g_L_light_yield_vs_ch")
+            nBadCh += 1
     
     graph = rootfile.Get('g_R_light_yield_vs_bar')
     h_LO_R_bar.Fill(GetMeanRMS(graph)[0])
     if GetMeanRMS(graph)[0] < MIN_LO_ch:
-        isCatB = True
+        #print("failing g_R_light_yield_vs_bar")
+        isCatC = True
         isCatA = False
     for point in range(graph.GetN()):
         h_LO_R_ch.Fill(graph.GetPointY(point))
+        if graph.GetPointY(point) < minLO:
+            minLO = graph.GetPointY(point)
         if graph.GetPointY(point) < MIN_LO_ch:
-            isCatB = True
+            #print("failing g_R_light_yield_vs_ch")
+            nBadCh += 1
+    
+    graph = rootfile.Get('g_lyso_L_peak_res_vs_bar')
+    for point in range(graph.GetN()):
+        h_peak_res_L_ch.Fill(graph.GetPointY(point))
+    graph = rootfile.Get('g_lyso_R_peak_res_vs_bar')
+    for point in range(graph.GetN()):
+        h_peak_res_R_ch.Fill(graph.GetPointY(point))
+    graph = rootfile.Get('g_avg_lyso_res_vs_bar')
+    for point in range(graph.GetN()):
+        if graph.GetPointY(point) > maxRes:
+            maxRes = graph.GetPointY(point)
+        h_peak_res_avg_bar.Fill(graph.GetPointY(point))
+        if graph.GetPointY(point) > MAX_RES_bar:
+            isCatC = True
             isCatA = False
     
     graph = rootfile.Get('g_light_yield_vs_ch')
     h_LOrms_ch.Fill(GetMeanRMS(graph)[1]/GetMeanRMS(graph)[0]*100.)
     h_LOmaxvar_ch.Fill(GetMaxVar(graph)/GetMeanRMS(graph)[0]*100.)
-    
 
-    if isCatB == isCatA:
-        print('Error: a module cannot be both catA and catB')
+    param[4] = minLO
+    param[5] = maxAsymm
+    param[6] = maxRes
+    
+    if isCatC == False:
+        if nBadCh == 0:
+            isCatA = True
+        elif nBadCh < 2:
+            isCatB = True
+            isCatA = False
+        else:
+            isCatC = True
+            isCatA = False
+    
     if isCatA:
         nCatA += 1
     if isCatB:
         nCatB += 1
-        print('>>> '+module+' is cat. B!!!')
+        param[7] = 'cat. B'
+    if isCatC:
+        nCatC += 1
+        param[7] = 'cat. C'
+    
+    print("module %s   run %4d   mean LO: %4.0f   mean asymm: %6.3f   min LO: %4.0f   max asymm: %6.3f   peak res: %6.3f   %s"%(module,param[1],round(param[2],0),round(param[3],3),round(param[4],0),round(param[5],3),round(param[6],3),param[7]))
+
+print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---')
+print('--- --- --- --- --- --- --- PRINT SM LIST SORTED BY LO  --- --- --- --- --- ---')
+print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---')
+
+sorted_lo_dict = sorted(sm_lo_dict.items(), key=lambda x:x[1], reverse=True)
+for module in sorted_lo_dict:
+    if module[0] in modules_db:
+        print("barcode: %s --> LO = %.2f"%(module[0], module[1]))
+    
+#print(sorted_lo_dict)
+
+print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---')
+
+print('N cat. A = %4d (%4.1f%%)'%(nCatA,nCatA/(nCatA+nCatB+nCatC)*100.))
+print('N cat. B = %4d (%4.1f%%)'%(nCatB,nCatB/(nCatA+nCatB+nCatC)*100.))
+print('N cat. C = %4d (%4.1f%%)'%(nCatC,nCatC/(nCatA+nCatB+nCatC)*100.))
+
+print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---')
+
+print('cat. B modules:')
+
+modules = params.keys()
+for module in sorted(modules):
+    param = params[module]
+    if 'cat. B' in param:
+        print("module %s   run %4d   mean LO: %4.0f   mean asymm: %6.3f   min LO: %4.0f   max asymm: %6.3f   %s"%(module,param[1],round(param[2],0),round(param[3],3),round(param[4],0),round(param[5],3),param[6]))
+
+print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---')
+
+print('cat. C modules:')
+
+modules = params.keys()
+for module in sorted(modules):
+    param = params[module]
+    if 'cat. C' in param:
+        print("module %s   run %4d   mean LO: %4.0f   mean asymm: %6.3f   min LO: %4.0f   max asymm: %6.3f   %s"%(module,param[1],round(param[2],0),round(param[3],3),round(param[4],0),round(param[5],3),param[6]))
+
+print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---')
+
 
 # draw histos
-
-latex_cat = ROOT.TLatex(0.18,0.85,'#splitline{cat. A: %d (%.1f%%)}{cat. B: %d (%.1f%%)}'%(nCatA,100.*nCatA/(nCatA+nCatB),nCatB,100.*nCatB/(nCatA+nCatB)))
+latex_cat = ROOT.TLatex(0.18,0.85,'#splitline{cat. A: %d (%.1f%%)}{#splitline{cat. B: %d (%.1f%%)}{cat. C: %d (%.1f%%)}}'%(nCatA,100.*nCatA/(nCatA+nCatB+nCatC),nCatB,100.*nCatB/(nCatA+nCatB+nCatC),nCatC,100.*nCatC/(nCatA+nCatB+nCatC)))
 latex_cat.SetNDC()
 latex_cat.SetTextSize(0.05)
+
+
 
 c = ROOT.TCanvas('c_spe_LR_ch','',800,700)
 ROOT.gPad.SetGridx()
@@ -273,6 +381,16 @@ latex_R.SetTextSize(0.05)
 latex_R.SetTextColor(ROOT.kBlue)
 latex_R.Draw('same')
 latex_cat.Draw('same')
+line_low = ROOT.TLine(MIN_SPE_ch,0.,MIN_SPE_ch,1.05*h_spe_L_ch.GetMaximum())
+line_low.SetLineColor(ROOT.kGreen+1)
+line_low.SetLineWidth(4)
+line_low.SetLineStyle(2)
+line_low.Draw('same')
+line_high = ROOT.TLine(MAX_SPE_ch,0.,MAX_SPE_ch,1.05*h_spe_L_ch.GetMaximum())
+line_high.SetLineColor(ROOT.kGreen+1)
+line_high.SetLineWidth(4)
+line_high.SetLineStyle(2)
+line_high.Draw('same')
 c.Print('%s/h_spe_LR_ch.png'%plotDir)
 
 
@@ -424,12 +542,12 @@ line_low = ROOT.TLine(MIN_LO_ASYMM_ch,0.,MIN_LO_ASYMM_ch,1.05*h_LO_asymm_ch.GetM
 line_low.SetLineColor(ROOT.kGreen+1)
 line_low.SetLineWidth(4)
 line_low.SetLineStyle(2)
-line_low.Draw('same')
+#line_low.Draw('same')
 line_high = ROOT.TLine(MAX_LO_ASYMM_ch,0.,MAX_LO_ASYMM_ch,1.05*h_LO_asymm_ch.GetMaximum())
 line_high.SetLineColor(ROOT.kGreen+1)
 line_high.SetLineWidth(4)
 line_high.SetLineStyle(2)
-line_high.Draw('same')
+#line_high.Draw('same')
 latex_cat.Draw('same')
 c.Print('%s/h_LO_asymm_ch.png'%plotDir)
 
@@ -501,3 +619,78 @@ line.SetLineStyle(2)
 line.Draw('same')
 latex_cat.Draw('same')
 c.Print('%s/h_LOmaxvar_ch.png'%plotDir)
+
+
+
+c = ROOT.TCanvas('c_peakRes_LR_ch','',800,700)
+ROOT.gPad.SetGridx()
+ROOT.gPad.SetGridy()
+ROOT.gPad.SetLogy()
+h_peak_res_L_ch.SetTitle(';peak resolution;entries')
+h_peak_res_L_ch.SetFillStyle(3001)
+h_peak_res_L_ch.SetFillColor(ROOT.kRed)
+h_peak_res_L_ch.SetLineColor(ROOT.kRed)
+h_peak_res_L_ch.GetYaxis().SetRangeUser(0.5,1.1*max(h_peak_res_L_ch.GetMaximum(),h_peak_res_R_ch.GetMaximum()))
+h_peak_res_L_ch.Draw()
+latex_L = ROOT.TLatex(0.64,0.70,'#splitline{mean: %.2e}{RMS: %.1f %%}'%(h_peak_res_L_ch.GetMean(),h_peak_res_L_ch.GetRMS()/h_peak_res_L_ch.GetMean()*100.))
+latex_L.SetNDC()
+latex_L.SetTextSize(0.05)
+latex_L.SetTextColor(ROOT.kRed)
+latex_L.Draw('same')
+h_peak_res_R_ch.SetFillStyle(3001)
+h_peak_res_R_ch.SetFillColor(ROOT.kBlue)
+h_peak_res_R_ch.SetLineColor(ROOT.kBlue)
+h_peak_res_R_ch.Draw('same')
+latex_R = ROOT.TLatex(0.64,0.40,'#splitline{mean: %.2e}{RMS: %.1f %%}'%(h_peak_res_R_ch.GetMean(),h_peak_res_R_ch.GetRMS()/h_peak_res_R_ch.GetMean()*100.))
+latex_R.SetNDC()
+latex_R.SetTextSize(0.05)
+latex_R.SetTextColor(ROOT.kBlue)
+latex_R.Draw('same')
+latex_cat.Draw('same')
+line_low = ROOT.TLine(MIN_SPE_ch,0.,MIN_SPE_ch,1.05*h_peak_res_L_ch.GetMaximum())
+line_low.SetLineColor(ROOT.kGreen+1)
+line_low.SetLineWidth(4)
+line_low.SetLineStyle(2)
+line_low.Draw('same')
+line_high = ROOT.TLine(MAX_SPE_ch,0.,MAX_SPE_ch,1.05*h_peak_res_L_ch.GetMaximum())
+line_high.SetLineColor(ROOT.kGreen+1)
+line_high.SetLineWidth(4)
+line_high.SetLineStyle(2)
+line_high.Draw('same')
+c.Print('%s/h_peakRes_LR_ch.png'%plotDir)
+
+c = ROOT.TCanvas('c_peakRes_avg_bar','',800,700)
+ROOT.gPad.SetGridx()
+ROOT.gPad.SetGridy()
+ROOT.gPad.SetLogy()
+h_peak_res_avg_bar.SetTitle(';peak resolution;entries')
+h_peak_res_avg_bar.SetFillStyle(3001)
+h_peak_res_avg_bar.SetFillColor(ROOT.kBlack)
+h_peak_res_avg_bar.Draw()
+line = ROOT.TLine(MAX_RES_bar,0.,MAX_RES_bar,1.05*h_peak_res_avg_bar.GetMaximum())
+line.SetLineColor(ROOT.kGreen+1)
+line.SetLineWidth(4)
+line.SetLineStyle(2)
+line.Draw('same')
+latex_cat.Draw('same')
+c.Print('%s/h_peak_res_avg_bar.png'%plotDir)
+
+
+
+c = ROOT.TCanvas('c_LO_vs_barcode','',800,700)
+ROOT.gPad.SetGridx()
+ROOT.gPad.SetGridy()
+g_LO_avg_vs_barcode.SetTitle(';barcode;avg. light output [p.e./MeV]')
+g_LO_avg_vs_barcode.SetLineWidth(2)
+g_LO_avg_vs_barcode.GetYaxis().SetRangeUser(3150*0.75,3150*1.15)
+g_LO_avg_vs_barcode.Draw('AL')
+c.Print('%s/g_LO_vs_barcode.png'%plotDir)
+
+c = ROOT.TCanvas('c_LOasymm_vs_barcode','',800,700)
+ROOT.gPad.SetGridx()
+ROOT.gPad.SetGridy()
+g_LOasymm_avg_vs_barcode.SetTitle(';barcode;avg. L.O. asymm.')
+g_LOasymm_avg_vs_barcode.SetLineWidth(2)
+g_LOasymm_avg_vs_barcode.GetYaxis().SetRangeUser(0.,0.2)
+g_LOasymm_avg_vs_barcode.Draw('AL')
+c.Print('%s/g_LOasymm_vs_barcode.png'%plotDir)

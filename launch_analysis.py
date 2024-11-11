@@ -2,167 +2,47 @@
 
 import os
 import argparse
+import json
+
+
+def get_list(input_list):
+        vals = []
+        comma_list = input_list.split(',')
+        for item in comma_list:
+                hyphen_list = item.split('-')
+                if len(hyphen_list) > 1:
+                        for i in range(int(hyphen_list[0]), int(hyphen_list[1])+1):
+                                vals.append(i)
+                else:
+                        vals.append(float(hyphen_list[0]))
+        return vals
+
 
 parser = argparse.ArgumentParser(description='Launch reco')
+parser.add_argument("-r", "--runs",   help="runs to reprocess", type=str, dest="runs", required=True,)
 parser.add_argument("-s", "--submit", help="submit jobs", action='store_true')
 args = parser.parse_args()
 
-path = '/data1/SMQAQC/PRODUCTION/'
-sourceType = 'cesium'
+runs_list = get_list(args.runs)
+print('Runs to process', runs_list)
 
-modules = [
-#('run0050','module_32110020000018','0'),
-#('run0050','module_32110020000019','1'),
-#('run0050','module_32110020000020','2'),
-#('run0050','module_32110020000021','3'),
-#('run0050','module_32110020000022','4'),
-#('run0050','module_32110020000023','5'),
-#
-#('run0051','module_32110020000024','0'),
-#('run0051','module_32110020000025','1'),
-#('run0051','module_32110020000026','2'),
-#('run0051','module_32110020000027','3'),
-#('run0051','module_32110020000028','4'),
-#('run0051','module_32110020000029','5'),
-#
-#('run0052','module_32110020000030','0'),
-#('run0052','module_32110020000031','1'),
-#('run0052','module_32110020000032','2'),
-#('run0052','module_32110020000033','3'),
-#('run0052','module_32110020000034','4'),
-#('run0052','module_32110020000035','5'),
-#
-#('run0053','module_32110020000036','0'),
-#('run0053','module_32110020000037','1'),
-#('run0053','module_32110020000038','2'),
-#('run0053','module_32110020000039','3'),
-#('run0053','module_32110020000040','4'),
-#('run0053','module_32110020000041','5'),
-#
-#('run0054','module_32110020000001','0'),
-#('run0054','module_32110020000002','1'),
-#('run0054','module_32110020000003','2'),
-#('run0054','module_32110020000004','3'),
-#('run0054','module_32110020000005','4'),
-#('run0054','module_32110020000006','5'),
-#
-#('run0055','module_32110020000007','0'),
-#('run0055','module_32110020000008','1'),
-#('run0055','module_32110020000009','2'),
-#('run0055','module_32110020000010','3'),
-#('run0055','module_32110020000011','4'),
-#('run0055','module_32110020000012','5'),
-#
-#('run0056','module_32110020000013','0'),
-#('run0056','module_32110020000014','1'),
-#('run0056','module_32110020000015','2'),
-#('run0056','module_32110020000016','3'),
-#('run0056','module_32110020000017','4'),
-#
-#('run0057','module_32110020000010','0'),
-#('run0058','module_32110020000010','1'),
-#('run0059','module_32110020000010','2'),
-#('run0060','module_32110020000010','3'),
-#('run0061','module_32110020000010','4'),
-#('run0062','module_32110020000010','5'),
-#
-#('run0063','module_32110020000042','0'),
-#('run0063','module_32110020000043','1'),
-#('run0063','module_32110020000044','2'),
-#('run0063','module_32110020000045','3'),
-#('run0063','module_32110020000046','4'),
-#('run0063','module_32110020000047','5'),
-#
-#('run0064','module_32110020000048','0'),
-#('run0064','module_32110020000049','1'),
-#('run0064','module_32110020000050','2'),
-#('run0064','module_32110020000051','3'),
-#('run0064','module_32110020000052','4'),
-#('run0064','module_32110020000053','5'),
-#
-#('run0065','module_32110020000054','0'),
-#('run0065','module_32110020000055','1'),
-#('run0065','module_32110020000056','2'),
-#('run0065','module_32110020000057','3'),
-#('run0065','module_32110020000058','4'),
-#('run0065','module_32110020000059','5'),
-#
-#('run0066','module_32110020000060','0'),
-#('run0066','module_32110020000061','1'),
-#('run0066','module_32110020000062','2'),
-#('run0066','module_32110020000063','3'),
-#('run0066','module_32110020000064','4'),
-#('run0066','module_32110020000065','5'),
-#
-#('run0067','module_32110020000049','0'),
-#('run0067','module_32110020000061','1'),
-#
-#('run0068','module_32110020000049','0'),
-#('run0068','module_32110020000061','1'),
-#('run0068','module_32110020000048','2'),
-#
-#('run0069','module_32110020000061','0'),
-#('run0070','module_32110020000061','1'),
-#('run0071','module_32110020000061','2'),
-#('run0072','module_32110020000061','3'),
-#('run0073','module_32110020000061','4'),
-#('run0074','module_32110020000061','5'),
-#
-#('run0075','module_32110020000070','0'),
-#('run0075','module_32110020000071','1'),
-#('run0075','module_32110020000072','2'),
-#('run0075','module_32110020000073','3'),
-#('run0075','module_32110020000074','4'),
-#('run0075','module_32110020000075','5'),
-#
-#('run0076','module_32110020000066','0'),
-#('run0076','module_32110020000067','1'),
-#('run0076','module_32110020000068','2'),
-#('run0076','module_32110020000069','3'),
-#
-#('run0077','module_32110020000070','0'),
-#('run0077','module_32110020000071','1'),
-#('run0077','module_32110020000072','2'),
-#('run0077','module_32110020000073','3'),
-#('run0077','module_32110020000074','4'),
-#('run0077','module_32110020000075','5'),
-#
-#('run0079','module_32110020000070','0'),
-#('run0079','module_32110020000071','1'),
-#('run0079','module_32110020000072','2'),
-#('run0079','module_32110020000073','3'),
-#('run0079','module_32110020000074','4'),
-#('run0079','module_32110020000075','5'),
-#
-#('run0080','module_32110020000070','0'),
-#('run0081','module_32110020000070','0'),
-#('run0082','module_32110020000070','0'),
-    
-    # ('run0092','module_32110020000103','3'),
 
-    # ('run0085','module_32110020000070','0'),
-    # ('run0085','module_32110020000071','1'),
-    # ('run0085','module_32110020000072','2'),
-    # ('run0085','module_32110020000073','3'),
-    # ('run0085','module_32110020000074','4'),
-    # ('run0085','module_32110020000075','5'),
+path = '/home/cmsdaq/DAQ/qaqc_jig/data/'
+sourceType = 'sodium'
 
-    # ('run0086','module_32110020000066','0'),
-    # ('run0086','module_32110020000067','1'),
-    # ('run0086','module_32110020000068','2'),
-    # ('run0086','module_32110020000069','3'),
 
-    # ('run0087','module_32110020000076','0'),
-    # ('run0087','module_32110020000077','1'),
-    # ('run0087','module_32110020000078','2'),
-    # ('run0087','module_32110020000079','3'),
-    # ('run0087','module_32110020000080','4'),
-    # ('run0087','module_32110020000081','5'),
+for run in runs_list:
 
-    ('run0100','module_32110020000144','5'),
-]
+    jsonFileName = path+'run%04d/qaqc_gui.settings'%run
+    config = json.load(open(jsonFileName))
+    slot = 0
+    for barcode in config['barcodes']:
+        if config['module_available'][slot] == 1:                                                                                                                                                                                                                                                                                                   
+            print(barcode,slot)
+            command = './python/analyze-waveforms --barcode '+str(barcode)+' --slot '+str(slot)+' --sourceType %s --print-pdfs \"/data/html/PRODUCTION/\" -o %s/run%04d/module_%s_analysis.root %s/run%04d/module_%s_integrals.hdf5' % (sourceType,path,run,barcode,path,run,barcode)
+            print(command)
+            if args.submit: os.system(command)
 
-for module in modules:
-    command = './python/analyze-waveforms --slot '+module[2]+' --sourceType %s --print-pdfs \"/var/www/html/\" -o %s/%s_analysis.root %s/%s_integrals.hdf5' % (sourceType,path+module[0],module[1],path+module[0],module[1])
-    print(command)
-    if args.submit: os.system(command)
+            slot += 1
+        else:
+            slot += 1

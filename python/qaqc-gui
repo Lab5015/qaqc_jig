@@ -589,7 +589,7 @@ def take_data():
       entry.update()
       
       out_filename = "%s_analysis.root" % root
-      cmd = [ANALYZE_WAVEFORMS_PROGRAM,'-o',out_filename,'--slot',i,'--sourceType','cesium','--print-pdfs','/var/www/html/',filename]
+      cmd = [ANALYZE_WAVEFORMS_PROGRAM,'-o',out_filename,'--barcode',barcode,'--slot',i,'--sourceType','sodium','--print-pdfs','/data/html/PRODUCTION/',filename]
       
       if run_command(cmd,progress_bar=i):
          module_status[i].config(text="Failed analysis")
@@ -747,17 +747,27 @@ def step_module(module_i):
       try:
          if module_i>step_lastposition:
             for j in range(step_lastposition +1, module_i+1):
-               query(client, "step %i" % list_nstep[j], 600)
+               print("forward --- %i" % list_nstep[j])
+               if(list_nstep[j] > 1068):
+                  query(client, "step %i" % (list_nstep[j]/2), 60)
+                  query(client, "step %i" % (list_nstep[j]/2), 60)
+               else:
+                  query(client, "step %i" % list_nstep[j], 60)
+               print("now at module %i" % j)
             print("step %i done" % module_i)
          elif module_i<step_lastposition:
             for j in range(module_i +1, step_lastposition+1):
-               query(client, "step %i" % -list_nstep[j], 600)
+               print("backward --- %i" % list_nstep[j])
+               query(client, "step %i" % -list_nstep[j], 60)
+               print("now at module %i" % j)
             print("step %i done" % module_i)
          else:
             pass
       except Exception as e:
+         print("PROBLEM, TIMEOUT?")
          print_warning(str(e)+" step")
          return
+      print("moving completed")
 
       step_lastposition = module_i
       os.system('echo %d > ~/.step_lastposition'%step_lastposition)

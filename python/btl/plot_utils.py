@@ -121,15 +121,15 @@ def plot_hist(h, path=None, filename=None, logy=False):
         #     print(f"Creating directory {dir_path}")
         #     os.makedirs(dir_path)
         root, ext = os.path.splitext(filename)
+        root = root[root.find('/run'):]
         if not os.path.isdir("%s/%s"%(path,root)):
             os.makedirs("%s/%s"%(path,root))
-        
         #print('Printing plots to file: %s %s' % (path, root))
         c.Print("%s/%s/%s.pdf" % (path, root, h.GetName()))
         c.Print("%s/%s/%s.png" % (path, root, h.GetName()))
 
 
-def plot_graph(g, path=None, filename=None, xMin=-1., xMax=32., yMin=-1., yMax=-1.):
+def plot_graph(g, path=None, filename=None, xMin=-1., xMax=32., yMin=-1., yMax=-1., module=None, normMean=True):
     global canvas
     # Naming canvases this way will produce a runtime warning because ROOT
     # will always make a default canvas with name `c1` the first time you
@@ -151,36 +151,42 @@ def plot_graph(g, path=None, filename=None, xMin=-1., xMax=32., yMin=-1., yMax=-
     hPad.SetTitle(";%s;%s"%(g.GetXaxis().GetTitle(),g.GetYaxis().GetTitle()))
     hPad.Draw()
     g.Draw('PL,same')
-    if mean!=0:
+    if normMean:
         lab = 'mean = %.2e, RMS = %.1f%%'%(mean,rms/mean*100.)
     else:
-        lab = 'mean = %.2e, RMS = %.1f'%(mean,rms)
+        lab = 'mean = %.2e, RMS = %.1e'%(mean,rms)
     
     latex = ROOT.TLatex( 0.20, 0.90,lab)
-    #latex = ROOT.TLatex( 0.20, 0.90, 'mean = %.2e, RMS = %.1f%%'%(mean,rms/mean*100.))
     latex.SetNDC()
     latex.SetTextSize(0.050)
     latex.SetTextColor(ROOT.kBlack)
     latex.Draw()
     lab2 = 'max = %.2f , min = %.2f'%(maxim,minim)
-    latex2 = ROOT.TLatex( 0.20, 0.80,lab2)
+    latex2 = ROOT.TLatex( 0.20, 0.85,lab2)
     latex2.SetNDC()
     latex2.SetTextSize(0.050)
     latex2.SetTextColor(ROOT.kBlack)
     latex2.Draw()
+    if module is not None:
+            latex_mod = ROOT.TLatex( 0.63, 0.20, str(module))
+            latex_mod.SetNDC()
+            latex_mod.SetTextSize(0.050)
+            latex_mod.SetTextColor(ROOT.kBlack)
+            latex_mod.Draw()
     ROOT.gPad.SetGridy()
     c.Update()
     if not path or not filename:
             print('No path / filename specified; can not print pdf!')
     else:
         root, ext = os.path.splitext(filename)
+        root = root[root.find('/run'):]
         if not os.path.isdir("%s/%s"%(path,root)):
             os.mkdir("%s/%s"%(path,root))
         c.Print("%s/%s/%s.pdf" % (path, root, g.GetName()))
         c.Print("%s/%s/%s.png" % (path, root, g.GetName()))
 
 
-def plot_graph_bars(g_L, g_R, g_A, path=None, filename=None, graphname='graph', yMin=-1, yMax=-1):
+def plot_graph_bars(g_L, g_R, g_A, path=None, filename=None, graphname='graph', yMin=-1, yMax=-1, module=None):
     # Naming canvases this way will produce a runtime warning because ROOT
     # will always make a default canvas with name `c1` the first time you
     # fit a histogram. The only way I know how to get rid of it is to
@@ -223,9 +229,9 @@ def plot_graph_bars(g_L, g_R, g_A, path=None, filename=None, graphname='graph', 
         label_R = 'right side:   mean = %.2e, RMS = %.1f'%(mean_R,rms_R) 
 
     if mean_A!=0:
-        label_A = 'average:   mean = %.2e, RMS = %.1f%%'%(mean_A,rms_A/mean_A*100.)
+        label_A = '  average:   mean = %.2e, RMS = %.1f%%'%(mean_A,rms_A/mean_A*100.)
     else:
-        label_A = 'average:   mean = %.2e, RMS = %.1f'%(mean_A,rms_A) 
+        label_A = '  average:   mean = %.2e, RMS = %.1f'%(mean_A,rms_A) 
 
     latex_L = ROOT.TLatex( 0.20, 0.90, label_L)
     latex_R = ROOT.TLatex( 0.20, 0.85, label_R)
@@ -245,12 +251,19 @@ def plot_graph_bars(g_L, g_R, g_A, path=None, filename=None, graphname='graph', 
     latex_A.SetTextSize(0.050)
     latex_A.SetTextColor(ROOT.kBlack)
     latex_A.Draw()
+    if module is not None:
+            latex_mod = ROOT.TLatex( 0.63, 0.20, str(module))
+            latex_mod.SetNDC()
+            latex_mod.SetTextSize(0.050)
+            latex_mod.SetTextColor(ROOT.kBlack)
+            latex_mod.Draw()
     ROOT.gPad.SetGridy()
     c.Update()
     if not path or not filename:
         print('No path / filename specified; can not print pdf!')
     else:
         root, ext = os.path.splitext(filename)
+        root = root[root.find('/run'):]
         if not os.path.isdir("%s/%s"%(path,root)):
             os.mkdir("%s/%s"%(path,root))
         c.Print("%s/%s/%s.pdf" % (path, root, graphname))
