@@ -32,14 +32,13 @@ MAX_LO_ASYMM_bar = 0.06
 MIN_LO_ASYMM_ch = -0.15
 MAX_LO_ASYMM_ch = 0.15
 MAX_RES_bar = 0.06
+NOT_TO_USE_SM = ['32110020000290','32110020000295','32110020000438','32110020000440','32110020000441','32110020000442','32110020000443','32110020000444','32110020000445','32110020000446','32110020000447','32110020000448','32110020000449','32110020000450','32110020000451']
 
 modules_db = getListOfSensorModules.getListOfSensorModules(location=5380,
                                                            size = '1000',
                                                            parent = 'and s.PART_PARENT_ID = 1000',
                                                            minBarcodeFilter = '',
                                                            maxBarcodeFilter = '')
-
-
 
 data_path = '/home/cmsdaq/DAQ/qaqc_jig/data/'
 selections = []
@@ -56,9 +55,9 @@ selections = []
 #modules_acc = ["200-248"]
 #plotDir = '/data/html/PRODUCTION_CALIB/sumaryPlots_SMID_201to248/'
 
-runs = ["11-13","30-32","34-34","36-36","38-38","40-40","46-46","49-58","61-63","106-108","110-110","112-113", "115-117", "119-119", "127-132", "134-136"]
-modules_acc = ["200-451"]
-plotDir = '/data/html/PRODUCTION/sumaryPlots_SMID_201to451/'
+runs = ["11-13","30-32","34-34","36-36","38-38","40-40","46-46","49-58","61-63","106-108","110-113", "115-117", "119-119", "127-132", "134-137", "139-141","157-157","159-167"]
+modules_acc = ["200-9999"]
+plotDir = '/data/html/PRODUCTION/sumaryPlots_SMID_201to9999/'
 
 #runs = ["136-136"]
 #modules_acc = ["440-451"]
@@ -141,10 +140,15 @@ if not os.path.isdir(plotDir):
 h_spe_L_ch = ROOT.TH1F('h_spe_L_ch','',100,3.,5.)
 h_spe_R_ch = ROOT.TH1F('h_spe_R_ch','',100,3.,5.)
 
+h_charge_raw_L_ch = ROOT.TH1F('h_charge_raw_L_ch','',100,0.,5.)
+h_charge_raw_R_ch = ROOT.TH1F('h_charge_raw_R_ch','',100,0.,5.)
+h_charge_L_ch = ROOT.TH1F('h_charge_L_ch','',100,0.,5.)
+h_charge_R_ch = ROOT.TH1F('h_charge_R_ch','',100,0.,5.)
+
 h_LO_avg_bar = ROOT.TH1F('h_LO_avg_bar','',100,1200.,5200.)
 h_LO_L_bar = ROOT.TH1F('h_LO_L_bar','',100,1200.,5200.)
 h_LO_R_bar = ROOT.TH1F('h_LO_R_bar','',100,1200.,5200.)
-h_LO_asymm_bar = ROOT.TH1F('h_LO_asymm_bar','',100,0,0.1)
+h_LO_asymm_bar = ROOT.TH1F('h_LO_asymm_bar','',100,0,0.2)
 
 h_LO_avg_ch = ROOT.TH1F('h_LO_avg_ch','',100,1200.,5200.)
 h_LO_L_ch = ROOT.TH1F('h_LO_L_ch','',100,1200.,5200.)
@@ -157,9 +161,10 @@ h_LOrms_ch = ROOT.TH1F('h_LOrms_ch','',60,0.,30.)
 h_LOmaxvar_bar = ROOT.TH1F('h_LOmaxvar_bar','',50,0.,100.)
 h_LOmaxvar_ch = ROOT.TH1F('h_LOmaxvar_ch','',50,0.,100.)
 
-h_peak_res_L_ch = ROOT.TH1F('h_peak_res_L_ch','',50,0.,0.25)
-h_peak_res_R_ch = ROOT.TH1F('h_peak_res_R_ch','',50,0.,0.25)
-h_peak_res_avg_bar = ROOT.TH1F('h_peak_res_avg_bar','',150,0.,0.15)
+h_peak_res_L_ch = ROOT.TH1F('h_peak_res_L_ch','',50,0.,25.)
+h_peak_res_R_ch = ROOT.TH1F('h_peak_res_R_ch','',50,0.,25.)
+h_peak_res_bar = ROOT.TH1F('h_peak_res_bar','',200,0.,20.)
+h_peak_res_avg_bar = ROOT.TH1F('h_peak_res_avg_bar','',200,0.,20.)
 
 g_LO_avg_vs_barcode = ROOT.TGraph()
 g_LO_L_vs_barcode = ROOT.TGraph()
@@ -201,6 +206,21 @@ for module in sorted(modules):
             #print("failing g_spe_R_vs_bar")
             isCatC = True
             isCatA = False
+
+    
+    graph = rootfile.Get('g_lyso_L_pc_per_kev_raw_vs_bar')
+    for point in range(graph.GetN()):
+        h_charge_raw_L_ch.Fill(graph.GetPointY(point))
+    graph = rootfile.Get('g_lyso_R_pc_per_kev_raw_vs_bar')
+    for point in range(graph.GetN()):
+        h_charge_raw_R_ch.Fill(graph.GetPointY(point))
+    
+    graph = rootfile.Get('g_lyso_L_pc_per_kev_vs_bar')
+    for point in range(graph.GetN()):
+        h_charge_L_ch.Fill(graph.GetPointY(point))
+    graph = rootfile.Get('g_lyso_R_pc_per_kev_vs_bar')
+    for point in range(graph.GetN()):
+        h_charge_R_ch.Fill(graph.GetPointY(point))
     
     graph = rootfile.Get('g_avg_light_yield_vs_bar')
     h_LO_avg_bar.Fill(GetMeanRMS(graph)[0])
@@ -267,15 +287,16 @@ for module in sorted(modules):
     
     graph = rootfile.Get('g_lyso_L_peak_res_vs_bar')
     for point in range(graph.GetN()):
-        h_peak_res_L_ch.Fill(graph.GetPointY(point))
+        h_peak_res_L_ch.Fill(100.*graph.GetPointY(point))
     graph = rootfile.Get('g_lyso_R_peak_res_vs_bar')
     for point in range(graph.GetN()):
-        h_peak_res_R_ch.Fill(graph.GetPointY(point))
+        h_peak_res_R_ch.Fill(100.*graph.GetPointY(point))
     graph = rootfile.Get('g_avg_lyso_res_vs_bar')
+    h_peak_res_avg_bar.Fill(100.*GetMeanRMS(graph)[0])
     for point in range(graph.GetN()):
         if graph.GetPointY(point) > maxRes:
             maxRes = graph.GetPointY(point)
-        h_peak_res_avg_bar.Fill(graph.GetPointY(point))
+        h_peak_res_bar.Fill(100.*graph.GetPointY(point))
         if graph.GetPointY(point) > MAX_RES_bar:
             isCatC = True
             isCatA = False
@@ -325,6 +346,18 @@ print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- -
 print('N cat. A = %4d (%4.1f%%)'%(nCatA,nCatA/(nCatA+nCatB+nCatC)*100.))
 print('N cat. B = %4d (%4.1f%%)'%(nCatB,nCatB/(nCatA+nCatB+nCatC)*100.))
 print('N cat. C = %4d (%4.1f%%)'%(nCatC,nCatC/(nCatA+nCatB+nCatC)*100.))
+
+print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---')
+
+
+print('cat. A modules to be used for DM, sorted by LO:')
+
+modules = params.keys()
+for module in sorted_lo_dict:
+    if module[0] in modules_db: 
+        param = params[module[0]]
+        if 'cat. B' not in param and 'cat. C' not in param and module[0] not in NOT_TO_USE_SM:
+            print("module %s   run %4d   mean LO: %4.0f   mean asymm: %6.3f   min LO: %4.0f   max asymm: %6.3f   %s"%(module[0],param[1],round(param[2],0),round(param[3],3),round(param[4],0),round(param[5],3),param[6]))
 
 print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---')
 
@@ -392,6 +425,66 @@ line_high.SetLineWidth(4)
 line_high.SetLineStyle(2)
 line_high.Draw('same')
 c.Print('%s/h_spe_LR_ch.png'%plotDir)
+
+
+
+
+c = ROOT.TCanvas('c_charge_raw_LR_ch','',800,700)
+ROOT.gPad.SetGridx()
+ROOT.gPad.SetGridy()
+ROOT.gPad.SetLogy()
+h_charge_raw_L_ch.SetTitle(';raw integrated charge [pC/keV];entries')
+h_charge_raw_L_ch.SetFillStyle(3001)
+h_charge_raw_L_ch.SetFillColor(ROOT.kRed)
+h_charge_raw_L_ch.SetLineColor(ROOT.kRed)
+h_charge_raw_L_ch.GetYaxis().SetRangeUser(0.5,1.1*max(h_charge_raw_L_ch.GetMaximum(),h_charge_raw_R_ch.GetMaximum()))
+h_charge_raw_L_ch.Draw()
+latex_L = ROOT.TLatex(0.64,0.70,'#splitline{mean: %.2e}{RMS: %.1f %%}'%(h_charge_raw_L_ch.GetMean(),h_charge_raw_L_ch.GetRMS()/h_charge_raw_L_ch.GetMean()*100.))
+latex_L.SetNDC()
+latex_L.SetTextSize(0.05)
+latex_L.SetTextColor(ROOT.kRed)
+latex_L.Draw('same')
+h_charge_raw_R_ch.SetFillStyle(3001)
+h_charge_raw_R_ch.SetFillColor(ROOT.kBlue)
+h_charge_raw_R_ch.SetLineColor(ROOT.kBlue)
+h_charge_raw_R_ch.Draw('same')
+latex_R = ROOT.TLatex(0.64,0.40,'#splitline{mean: %.2e}{RMS: %.1f %%}'%(h_charge_raw_R_ch.GetMean(),h_charge_raw_R_ch.GetRMS()/h_charge_raw_R_ch.GetMean()*100.))
+latex_R.SetNDC()
+latex_R.SetTextSize(0.05)
+latex_R.SetTextColor(ROOT.kBlue)
+latex_R.Draw('same')
+latex_cat.Draw('same')
+c.Print('%s/h_charge_raw_LR_ch.png'%plotDir)
+
+
+
+
+c = ROOT.TCanvas('c_charge_LR_ch','',800,700)
+ROOT.gPad.SetGridx()
+ROOT.gPad.SetGridy()
+ROOT.gPad.SetLogy()
+h_charge_L_ch.SetTitle(';integrated charge [pC/keV];entries')
+h_charge_L_ch.SetFillStyle(3001)
+h_charge_L_ch.SetFillColor(ROOT.kRed)
+h_charge_L_ch.SetLineColor(ROOT.kRed)
+h_charge_L_ch.GetYaxis().SetRangeUser(0.5,1.1*max(h_charge_L_ch.GetMaximum(),h_charge_R_ch.GetMaximum()))
+h_charge_L_ch.Draw()
+latex_L = ROOT.TLatex(0.64,0.70,'#splitline{mean: %.2e}{RMS: %.1f %%}'%(h_charge_L_ch.GetMean(),h_charge_L_ch.GetRMS()/h_charge_L_ch.GetMean()*100.))
+latex_L.SetNDC()
+latex_L.SetTextSize(0.05)
+latex_L.SetTextColor(ROOT.kRed)
+latex_L.Draw('same')
+h_charge_R_ch.SetFillStyle(3001)
+h_charge_R_ch.SetFillColor(ROOT.kBlue)
+h_charge_R_ch.SetLineColor(ROOT.kBlue)
+h_charge_R_ch.Draw('same')
+latex_R = ROOT.TLatex(0.64,0.40,'#splitline{mean: %.2e}{RMS: %.1f %%}'%(h_charge_R_ch.GetMean(),h_charge_R_ch.GetRMS()/h_charge_R_ch.GetMean()*100.))
+latex_R.SetNDC()
+latex_R.SetTextSize(0.05)
+latex_R.SetTextColor(ROOT.kBlue)
+latex_R.Draw('same')
+latex_cat.Draw('same')
+c.Print('%s/h_charge_LR_ch.png'%plotDir)
 
 
 
@@ -522,7 +615,7 @@ line_high = ROOT.TLine(MAX_LO_ASYMM_bar,0.,MAX_LO_ASYMM_bar,1.05*h_LO_asymm_bar.
 line_high.SetLineColor(ROOT.kGreen+1)
 line_high.SetLineWidth(4)
 line_high.SetLineStyle(2)
-line_high.Draw('same')
+#line_high.Draw('same')
 latex_cat.Draw('same')
 c.Print('%s/h_LO_asymm_bar.png'%plotDir)
 
@@ -659,11 +752,31 @@ line_high.SetLineStyle(2)
 line_high.Draw('same')
 c.Print('%s/h_peakRes_LR_ch.png'%plotDir)
 
+c = ROOT.TCanvas('c_peakRes_bar','',800,700)
+ROOT.gPad.SetGridx()
+ROOT.gPad.SetGridy()
+ROOT.gPad.SetLogy()
+h_peak_res_bar.SetTitle(';peak resolution[%];entries')
+h_peak_res_bar.SetFillStyle(3001)
+h_peak_res_bar.SetFillColor(ROOT.kBlack)
+h_peak_res_bar.Draw()
+line = ROOT.TLine(MAX_RES_bar,0.,MAX_RES_bar,1.05*h_peak_res_bar.GetMaximum())
+line.SetLineColor(ROOT.kGreen+1)
+line.SetLineWidth(4)
+line.SetLineStyle(2)
+line.Draw('same')
+latex = ROOT.TLatex(0.64,0.60,'#splitline{mean: %.2e}{RMS: %.1f %%}'%(h_peak_res_bar.GetMean(),h_peak_res_bar.GetRMS()/h_peak_res_bar.GetMean()*100.))
+latex.SetNDC()
+latex.SetTextSize(0.05)
+latex.Draw('same')
+latex_cat.Draw('same')
+c.Print('%s/h_peak_res_bar.png'%plotDir)
+
 c = ROOT.TCanvas('c_peakRes_avg_bar','',800,700)
 ROOT.gPad.SetGridx()
 ROOT.gPad.SetGridy()
 ROOT.gPad.SetLogy()
-h_peak_res_avg_bar.SetTitle(';peak resolution;entries')
+h_peak_res_avg_bar.SetTitle(';avg. peak resolution[%];entries')
 h_peak_res_avg_bar.SetFillStyle(3001)
 h_peak_res_avg_bar.SetFillColor(ROOT.kBlack)
 h_peak_res_avg_bar.Draw()
@@ -672,6 +785,10 @@ line.SetLineColor(ROOT.kGreen+1)
 line.SetLineWidth(4)
 line.SetLineStyle(2)
 line.Draw('same')
+latex = ROOT.TLatex(0.64,0.60,'#splitline{mean: %.2e}{RMS: %.1f %%}'%(h_peak_res_avg_bar.GetMean(),h_peak_res_avg_bar.GetRMS()/h_peak_res_avg_bar.GetMean()*100.))
+latex.SetNDC()
+latex.SetTextSize(0.05)
+latex.Draw('same')
 latex_cat.Draw('same')
 c.Print('%s/h_peak_res_avg_bar.png'%plotDir)
 
@@ -684,6 +801,11 @@ g_LO_avg_vs_barcode.SetTitle(';barcode;avg. light output [p.e./MeV]')
 g_LO_avg_vs_barcode.SetLineWidth(2)
 g_LO_avg_vs_barcode.GetYaxis().SetRangeUser(3150*0.75,3150*1.15)
 g_LO_avg_vs_barcode.Draw('AL')
+fitFunc = ROOT.TF1('fitFunc','pol1',200.,9999.)
+fitFunc.SetNpx(10000)
+g_LO_avg_vs_barcode.Fit(fitFunc,'QNRS+')
+fitFunc.SetLineColor(ROOT.kRed)
+fitFunc.Draw('same')
 c.Print('%s/g_LO_vs_barcode.png'%plotDir)
 
 c = ROOT.TCanvas('c_LOasymm_vs_barcode','',800,700)

@@ -31,25 +31,27 @@ def ROOT_peaks(h, width=10, height=0.05, npeaks=4, options="", sort=True):
     
     spec = ROOT.TSpectrum(npeaks)
     highest_peak = None
-
+    
     n_pks = spec.Search(h, width, options, height)               
     x_pos = spec.GetPositionX()
     x_pos = np.array([x_pos[i] for i in range(n_pks)])
 
     if sort:
         x_pos.sort()
-        
+    
+    maxval = -999.
     if len(x_pos) != 0:
-        highest_peak = x_pos[0]
+        for pos in x_pos:
+            if h.GetBinContent(h.FindBin(pos)) > maxval: 
+                maxval = h.GetBinContent(h.FindBin(pos))
+                highest_peak = pos
         if sort:
             highest_peak = x_pos[len(x_pos)-1]
     
     #print('found peaks: ', x_pos)
     #print('highest peak:', highest_peak)
     
-    ind = np.argsort(x_pos)
-    x_pos = x_pos[ind]
-    return (x_pos, highest_peak)
+    return highest_peak
 
 def fit_gamma(h, eng, offset=0, offset_sigma=10):
     """
@@ -62,7 +64,7 @@ def fit_gamma(h, eng, offset=0, offset_sigma=10):
     nPeaks = 3
 
     h.GetXaxis().SetRangeUser(300.,h.GetBinCenter(h.GetNbinsX()-1))
-    _ ,peak = ROOT_peaks(h,width=10,height=0.2,npeaks=nPeaks,options='nobackground',sort=False)
+    peak = ROOT_peaks(h,width=10,height=0.2,npeaks=nPeaks,options='nobackground',sort=False)
     if (peak == None): peak = 1300
     h.GetXaxis().SetRangeUser(0.,h.GetBinCenter(h.GetNbinsX()-1))
     

@@ -259,13 +259,17 @@ def reanalyze_data():
         root, ext = splitext(filename)
         out_filename = "%s_integrals.hdf5" % root
         cmd = [INTEGRATE_WAVEFORMS_PROGRAM,filename,'-o', out_filename]
-        
         if run_command(cmd,progress_bar=i):
             module_status[i].config(text="Failed integration")
             continue
-
         module_status[i].config(text="Integration successful!")
 
+        cmd = ['rm', filename]
+        if run_command(cmd,progress_bar=i):
+           module_status[i].config(text="Failed to remove file")
+           continue
+        module_status[i].config(text="Raw file removed!")
+        
 def get_vbd():
    # Make sure they entered the barcodes first.
    for i in range(12):
