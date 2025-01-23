@@ -61,10 +61,10 @@ def fit_gamma(h, eng, offset=0, offset_sigma=10):
     """
     
     ## Use TSpectrum
-    nPeaks = 3
+    nPeaks = 2
 
-    h.GetXaxis().SetRangeUser(300.,h.GetBinCenter(h.GetNbinsX()-1))
-    peak = ROOT_peaks(h,width=10,height=0.2,npeaks=nPeaks,options='nobackground',sort=False)
+    h.GetXaxis().SetRangeUser(300.,1600.)
+    peak = ROOT_peaks(h,width=20,height=0.2,npeaks=nPeaks,options='nobackground',sort=True)
     if (peak == None): peak = 1300
     h.GetXaxis().SetRangeUser(0.,h.GetBinCenter(h.GetNbinsX()-1))
     
