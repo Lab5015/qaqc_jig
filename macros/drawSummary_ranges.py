@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
  
 import os
+import argparse
 import shutil
 import glob
 import math
@@ -9,6 +10,7 @@ import sys
 import time
 import subprocess
 import json
+import csv
 
 import ROOT
 import tdrstyle
@@ -16,6 +18,7 @@ import tdrstyle
 from collections import OrderedDict
 from typing import NamedTuple
 
+from drawSummary_utils import *
 from btl_scripts import getListOfSensorModules
 
 #set the tdr style
@@ -27,6 +30,7 @@ ROOT.gErrorIgnoreLevel = ROOT.kWarning;
 ROOT.gROOT.SetBatch(True)
 #ROOT.gROOT.SetBatch(False)
 
+data_path = '/home/cmsdaq/DAQ/qaqc_jig/data/'
 MIN_SPE_ch = 3.4
 MAX_SPE_ch = 4.4
 MIN_LO_bar = 0.85 * 3150.
@@ -35,35 +39,18 @@ MAX_LO_ASYMM_bar = 0.08
 MIN_LO_ASYMM_ch = -0.2
 MAX_LO_ASYMM_ch = 0.2
 MAX_RES_bar = 0.06
-NOT_TO_USE_SM = ['32110020000290','32110020000295','32110020000438','32110020000440','32110020000441','32110020000442','32110020000443','32110020000444','32110020000445','32110020000446','32110020000447','32110020000448','32110020000449','32110020000450','32110020000451']
 
-modules_db = getListOfSensorModules.getListOfSensorModules(location=5380,
-                                                           size = '1000',
-                                                           parent = 'and s.PART_PARENT_ID = 1000',
-                                                           minBarcodeFilter = '',
-                                                           maxBarcodeFilter = '')
 
-with open('/home/cmsdaq/Programs/mtddb/btl_scripts/SMdata.json', 'r') as infile:
-    SMdata = json.load(infile)
-with open('/home/cmsdaq/Programs/mtddb/btl_scripts/LYSOdata.json', 'r') as infile:
-    LYSOdata = json.load(infile)
-    
-data_path = '/home/cmsdaq/DAQ/qaqc_jig/data/'
-selections = []
 
-#runs = ["11-13","30-32","34-34","36-36","38-38","40-40","46-46","49-58","61-63"]
-#modules_acc = ["200-224"]
-#plotDir = '/data/html/PRODUCTION/summaryPlots_SMID_201to224/'
 
-#runs = ["106-107"]
-#modules_acc = ["225-248"]
-#plotDir = '/data/html/PRODUCTION/summaryPlots_SMID_225to248/'
+parser = argparse.ArgumentParser(description='draw and print SM summary')
+parser.add_argument("-v", "--verbose", help="verbosity", action='store_true')                                                                                                                                                                                                                                                                     
+args = parser.parse_args()
 
-#runs = ["11-13","30-32","34-34","36-36","38-38","40-40","46-46","49-58","61-63","106-107"]
-#modules_acc = ["200-248"]
-#plotDir = '/data/html/PRODUCTION_CALIB/summaryPlots_SMID_201to248/'
 
-runs = ["11-13","30-32","34-34","36-36","38-38","40-40","46-46","49-58","61-63","106-108","110-113", "115-117", "119-119", "127-132", "134-137", "139-141","157-157","159-167","170-171","175-176","179-182","240-243","248-248","250-250","252-259","261-262","265-265","269-269","271-288","290-290","292-292"]
+#-----------------------------
+# list of runs to be processed
+runs = ["11-13","30-32","34-34","36-36","38-38","40-40","46-46","49-58","61-63","106-108","110-113", "115-117", "119-119", "127-132", "134-137", "139-141","157-157","159-167","170-171","175-176","179-182","240-243","248-248","250-250","252-259","261-262","265-265","269-269","271-288","290-290","292-297","303-303","307-307","309-318","320-321","323-330", "331", "333-338", "340-344","347-350"]
 modules_acc = ["200-9999"]
 plotDir = '/data/html/PRODUCTION_CALIB/summaryPlots_SMID_201to9999/'
 
@@ -72,85 +59,43 @@ plotDir = '/data/html/PRODUCTION_CALIB/summaryPlots_SMID_201to9999/'
 #modules_acc = ["440-451"]
 #plotDir = '/data/html/PRODUCTION/summaryPlots_SMID_440to451/'
 
-
-def countBad(nBadSpe, nBadLO, nBadRes, nBadAsymm):
-    nBadCount=0    
-    for ch in range(16):
-        if(nBadRes[ch] == 1 or nBadAsymm[ch]==1 or nBadLO[ch]>0 or nBadSpe[ch]>0):
-            nBadCount+=1
-    return nBadCount
-
-def expand_range(rng):
-    numbers = []
-    for item in rng:
-        if '-' in item:
-            start, end = map(int, item.split('-'))   
-            numbers.extend(range(start, end + 1))
-        else:
-            numbers.append(int(item))
-    return sorted(numbers)
-
-def GetMaxVar(graph):
-    minVal = 999999.
-    maxVal = -999999.
-    for point in range(graph.GetN()):
-        if graph.GetPointY(point) < minVal:
-            minVal = graph.GetPointY(point)
-        if graph.GetPointY(point) > maxVal:
-            maxVal = graph.GetPointY(point)            
-    return maxVal-minVal
-
-def GetMeanRMS(graph):
-    htemp = ROOT.TH1F('htemp','',100,-100.,10000)
-    for point in range(graph.GetN()):
-        #if graph.GetPointY(point) > 1000. and  graph.GetPointY(point) < 5000.:
-        htemp.Fill(graph.GetPointY(point))
-    return (htemp.GetMean(),htemp.GetRMS())
-
-def GetMeanRMS_abs(graph):
-    htemp = ROOT.TH1F('htemp','',100,-100.,10000)
-    for point in range(graph.GetN()):
-        #if graph.GetPointY(point) > 1000. and  graph.GetPointY(point) < 5000.:
-        htemp.Fill(abs(graph.GetPointY(point)))
-    return (htemp.GetMean(),htemp.GetRMS())
-
-
-
-nTot = 0
-nCatA = 0
-nCatB = 0
-nCatC = 0
-nCatD = 0
-nCatLO1 = 0
-nCatLO2 = 0
-nCatLO3 = 0
-nCatR1 = 0
-nCatR2 = 0
-nCatR3 = 0
-nCatAS1 = 0
-nCatAS2 = 0
-nCatAS3 = 0
-
-
-class ParamStruct(NamedTuple):                                                                                                                                                                                                                                                                                                                                             
-    inputFileName: str
-    run: int
-    meanLO: float
-    meanAsymm: float
-    minLO: float
-    maxAsymm: float
-    maxRes: float
-    cat: str
-
-params = OrderedDict()
-
 # Create a list of all runs
 list_runs = expand_range(runs)
+if args.verbose:
+    for run in list_runs:
+        print(run)
 list_modules = expand_range(modules_acc)
-# add barcode
 prefix = "32110020"
 list_modules = ["{}{:06d}".format(prefix, int(mod)) for mod in list_modules]
 
+
+#---------------------------
+# read SM blacklist csv file
+with open('SM_blacklist.csv', mode='r', newline='') as csvfile:
+    reader = csv.reader(csvfile)
+    sm_blacklist = {int(row[0]): row[1] for row in reader}
+
+
+#--------------------------------------------
+# get list of unused moudles in Milan from db
+modules_db = getListOfSensorModules.getListOfSensorModules(
+    location=5380,
+    parent = 'and s.PART_PARENT_ID = 1000',
+    minBarcodeFilter = '',
+    maxBarcodeFilter = '')
+print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---')
+print('Found %d SMs in db that are in Milan and not used in DM'%len(modules_db))
+
+
+#----------------------------------------
+# get json files with properties of parts
+with open('/home/cmsdaq/Programs/mtddb/btl_scripts/SMdata.json', 'r') as infile:
+    SMdata = json.load(infile)
+with open('/home/cmsdaq/Programs/mtddb/btl_scripts/LYSOdata.json', 'r') as infile:
+    LYSOdata = json.load(infile)
+
+
+#----------------------
 # retrieving root files 
 modules = []
 inputFiles = glob.glob(data_path+'/run*/*_analysis_calib.root')
@@ -169,6 +114,7 @@ if not os.path.isdir(plotDir):
     os.mkdir(plotDir)
 
 
+#----------------
 # creating histos
 h_spe_L_ch = ROOT.TH1F('h_spe_L_ch','',100,3.,5.)
 h_spe_R_ch = ROOT.TH1F('h_spe_R_ch','',100,3.,5.)
@@ -218,12 +164,28 @@ for batch in range(9):
     g_peak_res_max_vs_lyso[batch] = ROOT.TGraph()
 
 
+#------------------
+# loop over modules
+nTot = 0
+nCatA = 0
+nCatB = 0
+nCatC = 0
+nCatD = 0
+nCatLO1 = 0
+nCatLO2 = 0
+nCatLO3 = 0
+nCatR1 = 0
+nCatR2 = 0
+nCatR3 = 0
+nCatAS1 = 0
+nCatAS2 = 0
+nCatAS3 = 0
 
-
-# selecting the modules to be included in the summary: accept 1 if included, 0 otherwise
+params = OrderedDict()
 sm_lo_dict = {}
 barcodeMin = 9999
 barcodeMax = -9999
+
 for module in sorted(modules):
 
     if (int(module[0])-32110020000000) > barcodeMax:
@@ -291,7 +253,7 @@ for module in sorted(modules):
     graph = rootfile.Get('g_lyso_R_pc_per_kev_raw_vs_bar')
     for point in range(graph.GetN()):
         h_charge_raw_R_ch.Fill(graph.GetPointY(point))
-
+    
     graph = rootfile.Get('g_lyso_L_pc_per_kev_vs_bar')
     for point in range(graph.GetN()):
         h_charge_L_ch.Fill(graph.GetPointY(point))
@@ -310,9 +272,6 @@ for module in sorted(modules):
         g_LO_avg_vs_barcode[batch].SetPoint(g_LO_avg_vs_barcode[batch].GetN(),int(module[0])-32110020000000,GetMeanRMS(graph)[0])
         g_LO_avg_vs_lyso[batch].SetPoint(g_LO_avg_vs_lyso[batch].GetN(),LYSObarcode-32110000000000,GetMeanRMS(graph)[0])    
     meanLO = GetMeanRMS(graph)[0]
-    if GetMeanRMS(graph)[0] < MIN_LO_bar:
-        isCatD = True
-        isCatA = False
     for point in range(graph.GetN()):
         h_LO_avg_ch.Fill(graph.GetPointY(point))
     
@@ -321,9 +280,6 @@ for module in sorted(modules):
     meanAsymm = GetMeanRMS_abs(graph)[0]
     if batch != -1:
         g_LOasymm_avg_vs_barcode[batch].SetPoint(g_LOasymm_avg_vs_barcode[batch].GetN(),int(module[0])-32110020000000,GetMeanRMS_abs(graph)[0])
-    if GetMeanRMS_abs(graph)[0] > MAX_LO_ASYMM_bar:
-        isCatD=True
-        isCatA=False
     for point in range(graph.GetN()):
         h_LO_asymm_ch.Fill(graph.GetPointY(point))
         if abs(graph.GetPointY(point)) > maxAsymm:
@@ -379,7 +335,7 @@ for module in sorted(modules):
     graph = rootfile.Get('g_light_yield_vs_ch')
     h_LOrms_ch.Fill(GetMeanRMS(graph)[1]/GetMeanRMS(graph)[0]*100.)
     h_LOmaxvar_ch.Fill(GetMaxVar(graph)/GetMeanRMS(graph)[0]*100.)
-
+    
     if batch != -1:
         g_peak_res_max_vs_lyso[batch].SetPoint(g_peak_res_max_vs_lyso[batch].GetN(),LYSObarcode-32110000000000,maxRes)
         g_lyso_vs_barcode[batch].SetPoint(g_lyso_vs_barcode[batch].GetN(),int(module[0])-32110020000000,LYSObarcode-32110000000000)
@@ -403,21 +359,21 @@ for module in sorted(modules):
         isCatLO2 = True
     elif sum(nBadLO.values()) > 2: 
         isCatLO3 = True
-
+    
     if sum(nBadRes.values()) == 1:
         isCatR1 = True
     elif sum(nBadRes.values()) == 2: 
         isCatR2 = True
     elif sum(nBadRes.values()) > 2: 
         isCatR3 = True
-
+    
     if sum(nBadAsymm.values()) == 1:
         isCatAS1 = True
     elif sum(nBadAsymm.values()) == 2: 
         isCatAS2 = True
     elif sum(nBadAsymm.values()) > 2: 
         isCatAS3 = True
-
+    
     nTot += 1
     cat = 'n.a.'  
     if isCatA:
@@ -432,7 +388,7 @@ for module in sorted(modules):
     if isCatD:
         nCatD += 1
         cat = 'D'
-
+    
     if isCatLO1:
         nCatLO1 += 1
     if isCatLO2:
@@ -453,7 +409,7 @@ for module in sorted(modules):
         nCatAS2 += 1
     if isCatAS3:
         nCatAS3 += 1
-
+    
     if module[0] in params.keys():
         print('!!!!!!!!!!!!',params[module[0]])
     
@@ -468,7 +424,8 @@ for module in sorted(modules):
             cat = cat
         )
     param = params[module[0]]  
-    print('module %s   run: %04d   mean LO: %4.0f   mean asymm: %6.3f   min LO: %4.0f   max asymm: %6.3f   peak res: %6.3f   cat: %s'%(module[0],param.run,round(param.meanLO,0),round(param.meanAsymm,3),round(param.minLO,0),round(param.maxAsymm,3),round(param.maxRes,3),param.cat))
+    if args.verbose:
+        print('module %s   run: %04d   mean LO: %4.0f   mean asymm: %6.3f   min LO: %4.0f   max asymm: %6.3f   peak res: %6.3f   cat: %s'%(module[0],param.run,round(param.meanLO,0),round(param.meanAsymm,3),round(param.minLO,0),round(param.maxAsymm,3),round(param.maxRes,3),param.cat))
 
 nCatTot = nCatA + nCatB + nCatC + nCatD
 print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---')
@@ -490,9 +447,9 @@ print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- -
 print('cat. A modules to be used for DM, sorted by LO:')
 params = dict(sorted(params.items(), key=lambda x: x[1].meanLO, reverse=True))
 for module in params.keys():
-    if module in modules_db: 
+    if module in modules_db and int(module) not in list(sm_blacklist.keys()):
         param = params[module]
-        if param.cat == 'A' and module not in NOT_TO_USE_SM:
+        if param.cat == 'A':
             print('module %s   mean LO: %4.0f   cat: %s'%(module,round(param.meanLO,0),param.cat))
 
 print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---')
@@ -500,9 +457,9 @@ print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- -
 print('cat. B modules to be used for DM, sorted by LO:')
 params = dict(sorted(params.items(), key=lambda x: x[1].meanLO, reverse=True))
 for module in params.keys():
-    if module in modules_db: 
+    if module in modules_db and int(module) not in list(sm_blacklist.keys()):
         param = params[module]
-        if param.cat == 'B' and module not in NOT_TO_USE_SM:
+        if param.cat == 'B':
             print('module %s   mean LO: %4.0f   cat: %s'%(module,round(param.meanLO,0),param.cat))
 
 print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---')
@@ -510,9 +467,9 @@ print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- -
 print('cat. C modules to be used for DM, sorted by LO:')
 params = dict(sorted(params.items(), key=lambda x: x[1].meanLO, reverse=True))
 for module in params.keys():
-    if module in modules_db: 
+    if module in modules_db and int(module) not in list(sm_blacklist.keys()):
         param = params[module]
-        if param.cat == 'C' and module not in NOT_TO_USE_SM:
+        if param.cat == 'C':
             print('module %s   mean LO: %4.0f   cat: %s'%(module,round(param.meanLO,0),param.cat))
 
 print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---')
@@ -521,9 +478,9 @@ print('cat. D modules:')
 
 params = dict(sorted(params.items()))
 for module in params.keys():
-    if module in modules_db: 
+    if module in modules_db and int(module) not in list(sm_blacklist.keys()):
         param = params[module]
-        if param.cat == 'D' and module not in NOT_TO_USE_SM:
+        if param.cat == 'D':
             LYSObarcode = 32110000000000
             batchStr = ''
             batch = -1
@@ -538,8 +495,7 @@ for module in params.keys():
 print('--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---')
 
 
-
-
+#------------
 # draw histos
 latex_cat = ROOT.TLatex(0.18,0.85,'#splitline{cat. A: %d (%.1f%%)}{#splitline{cat. B: %d (%.1f%%)}{#splitline{cat. C: %d (%.1f%%)}{cat. D: %d (%.1f%%)}}}'%(nCatA,100.*nCatA/nCatTot,nCatB,100.*nCatB/nCatTot,nCatC,100.*nCatC/nCatTot, nCatD, 100.*nCatD/nCatTot))
 latex_cat.SetNDC()
@@ -598,8 +554,6 @@ line_high.Draw('same')
 c.Print('%s/h_spe_LR_ch.png'%plotDir)
 
 
-
-
 c = ROOT.TCanvas('c_charge_raw_LR_ch','',800,700)
 ROOT.gPad.SetGridx()
 ROOT.gPad.SetGridy()
@@ -628,8 +582,6 @@ latex_cat.Draw('same')
 latex_catLO.Draw('same')
 latex_catRes.Draw('same')
 c.Print('%s/h_charge_raw_LR_ch.png'%plotDir)
-
-
 
 
 c = ROOT.TCanvas('c_charge_LR_ch','',800,700)
@@ -662,8 +614,6 @@ latex_catRes.Draw('same')
 c.Print('%s/h_charge_LR_ch.png'%plotDir)
 
 
-
-
 c = ROOT.TCanvas('c_LO_avg_bar','',800,700)
 ROOT.gPad.SetGridx()
 ROOT.gPad.SetGridy()
@@ -685,6 +635,7 @@ latex_cat.Draw('same')
 latex_catLO.Draw('same')
 latex_catRes.Draw('same')
 c.Print('%s/h_LO_avg_bar.png'%plotDir)
+
 
 c = ROOT.TCanvas('c_FOM_bar','',800,700)
 ROOT.gPad.SetGridx()
@@ -733,8 +684,6 @@ latex_catRes.Draw('same')
 c.Print('%s/h_LO_avg_ch.png'%plotDir)
 
 
-
-
 c = ROOT.TCanvas('c_LO_LR_bar','',800,700)
 ROOT.gPad.SetGridx()
 ROOT.gPad.SetGridy()
@@ -768,6 +717,7 @@ latex_cat.Draw('same')
 latex_catLO.Draw('same')
 latex_catRes.Draw('same')
 c.Print('%s/h_LO_LR_bar.png'%plotDir)
+
 
 c = ROOT.TCanvas('c_LO_LR_ch','',800,700)
 ROOT.gPad.SetGridx()
@@ -804,8 +754,6 @@ latex_catRes.Draw('same')
 c.Print('%s/h_LO_LR_ch.png'%plotDir)
 
 
-
-
 c = ROOT.TCanvas('c_LO_asymm_bar','',800,700)
 ROOT.gPad.SetGridx()
 ROOT.gPad.SetGridy()
@@ -827,6 +775,7 @@ latex_cat.Draw('same')
 latex_catLO.Draw('same')
 latex_catRes.Draw('same')
 c.Print('%s/h_LO_asymm_bar.png'%plotDir)
+
 
 c = ROOT.TCanvas('c_LO_asymm_ch','',800,700)
 ROOT.gPad.SetGridx()
@@ -856,8 +805,6 @@ latex_catRes.Draw('same')
 c.Print('%s/h_LO_asymm_ch.png'%plotDir)
 
 
-
-
 c = ROOT.TCanvas('c_LOrms_bar','',800,700)
 ROOT.gPad.SetGridx()
 ROOT.gPad.SetGridy()
@@ -875,6 +822,7 @@ latex_cat.Draw('same')
 latex_catLO.Draw('same')
 latex_catRes.Draw('same')
 c.Print('%s/h_LOrms_bar.png'%plotDir)
+
 
 c = ROOT.TCanvas('c_LOrms_ch','',800,700)
 ROOT.gPad.SetGridx()
@@ -895,7 +843,6 @@ latex_catRes.Draw('same')
 c.Print('%s/h_LOrms_ch.png'%plotDir)
 
 
-
 c = ROOT.TCanvas('c_LOmaxvar_bar','',800,700)
 ROOT.gPad.SetGridx()
 ROOT.gPad.SetGridy()
@@ -914,6 +861,7 @@ latex_catLO.Draw('same')
 latex_catRes.Draw('same')
 c.Print('%s/h_LOmaxvar_bar.png'%plotDir)
 
+
 c = ROOT.TCanvas('c_LOmaxvar_ch','',800,700)
 ROOT.gPad.SetGridx()
 ROOT.gPad.SetGridy()
@@ -931,7 +879,6 @@ latex_cat.Draw('same')
 latex_catLO.Draw('same')
 latex_catRes.Draw('same')
 c.Print('%s/h_LOmaxvar_ch.png'%plotDir)
-
 
 
 c = ROOT.TCanvas('c_peakRes_LR_ch','',800,700)
@@ -963,6 +910,7 @@ latex_catLO.Draw('same')
 latex_catRes.Draw('same')
 c.Print('%s/h_peakRes_LR_ch.png'%plotDir)
 
+
 c = ROOT.TCanvas('c_peakRes_bar','',800,700)
 ROOT.gPad.SetGridx()
 ROOT.gPad.SetGridy()
@@ -984,6 +932,7 @@ line_high.SetLineWidth(4)
 line_high.SetLineStyle(2)
 line_high.Draw('same')
 c.Print('%s/h_peak_res_bar.png'%plotDir)
+
 
 c = ROOT.TCanvas('c_peakRes_avg_bar','',800,700)
 ROOT.gPad.SetGridx()
@@ -1008,7 +957,6 @@ latex_catRes.Draw('same')
 c.Print('%s/h_peak_res_avg_bar.png'%plotDir)
 
 
-
 c = ROOT.TCanvas('c_LO_vs_barcode','',800,700)
 ROOT.gPad.SetGridx()
 ROOT.gPad.SetGridy()
@@ -1017,8 +965,8 @@ hpad.SetTitle(';SM barcode;avg. light output [p.e./MeV]')
 hpad.Draw()
 for batch in range(9):
     if g_LO_avg_vs_barcode[batch].GetN() == 0: continue
-    g_LO_avg_vs_barcode[batch].SetLineColor(50+9*batch)
-    g_LO_avg_vs_barcode[batch].SetMarkerColor(50+9*batch)
+    g_LO_avg_vs_barcode[batch].SetLineColor(1+batch)
+    g_LO_avg_vs_barcode[batch].SetMarkerColor(1+batch)
     g_LO_avg_vs_barcode[batch].SetMarkerStyle(20)
     g_LO_avg_vs_barcode[batch].SetMarkerSize(1.)
     g_LO_avg_vs_barcode[batch].Draw('P,same')
@@ -1038,12 +986,13 @@ hpad.SetTitle(';SM barcode;avg. L.O. asymm.')
 hpad.Draw()
 for batch in range(9):
     if g_LOasymm_avg_vs_barcode[batch].GetN() == 0: continue
-    g_LOasymm_avg_vs_barcode[batch].SetLineColor(50+9*batch)
-    g_LOasymm_avg_vs_barcode[batch].SetMarkerColor(50+9*batch)
+    g_LOasymm_avg_vs_barcode[batch].SetLineColor(1+batch)
+    g_LOasymm_avg_vs_barcode[batch].SetMarkerColor(1+batch)
     g_LOasymm_avg_vs_barcode[batch].SetMarkerStyle(20)
     g_LOasymm_avg_vs_barcode[batch].SetMarkerSize(1.)
     g_LOasymm_avg_vs_barcode[batch].Draw('P,same')
 c.Print('%s/g_LOasymm_vs_barcode.png'%plotDir)
+
 
 c = ROOT.TCanvas('c_peak_res_max_vs_barcode','',800,700)
 ROOT.gPad.SetGridx()
@@ -1053,53 +1002,56 @@ hpad.SetTitle(';SM barcode;max. peak resolution')
 hpad.Draw()
 for batch in range(9):
     if g_peak_res_max_vs_barcode[batch].GetN() == 0: continue
-    g_peak_res_max_vs_barcode[batch].SetLineColor(50+9*batch)
-    g_peak_res_max_vs_barcode[batch].SetMarkerColor(50+9*batch)
+    g_peak_res_max_vs_barcode[batch].SetLineColor(1+batch)
+    g_peak_res_max_vs_barcode[batch].SetMarkerColor(1+batch)
     g_peak_res_max_vs_barcode[batch].SetMarkerStyle(20)
     g_peak_res_max_vs_barcode[batch].SetMarkerSize(1.)
     g_peak_res_max_vs_barcode[batch].Draw('P,same')
 c.Print('%s/g_peak_res_max_vs_barcode.png'%plotDir)
 
+
 c = ROOT.TCanvas('c_lyso_vs_barcode','',800,700)
 ROOT.gPad.SetGridx()
 ROOT.gPad.SetGridy()
-hpad = ROOT.gPad.DrawFrame(barcodeMin-10,100000.,barcodeMax+10,106000.)
+hpad = ROOT.gPad.DrawFrame(barcodeMin-10,100000.,barcodeMax+10,108000.)
 hpad.SetTitle(';SM barcode;LYSO barcode')
 hpad.Draw()
 for batch in range(9):
     if g_lyso_vs_barcode[batch].GetN() == 0: continue
-    g_lyso_vs_barcode[batch].SetLineColor(50+9*batch)
-    g_lyso_vs_barcode[batch].SetMarkerColor(50+9*batch)
+    g_lyso_vs_barcode[batch].SetLineColor(1+batch)
+    g_lyso_vs_barcode[batch].SetMarkerColor(1+batch)
     g_lyso_vs_barcode[batch].SetMarkerStyle(20)
     g_lyso_vs_barcode[batch].SetMarkerSize(1.)
     g_lyso_vs_barcode[batch].Draw('P,same')
 c.Print('%s/g_lyso_vs_barcode.png'%plotDir)
 
 
-
 c = ROOT.TCanvas('c_LO_vs_lyso','',800,700)
 ROOT.gPad.SetGridx()
 ROOT.gPad.SetGridy()
-hpad = ROOT.gPad.DrawFrame(100000.,3150*0.75,106000.,3150*1.15)
+hpad = ROOT.gPad.DrawFrame(100000.,3150*0.75,108000.,3150*1.15)
 hpad.SetTitle(';LYSO barcode;avg. light output [p.e./MeV]')
 hpad.Draw()
 for batch in range(9):
-    g_LO_avg_vs_lyso[batch].SetLineColor(50+9*batch)
-    g_LO_avg_vs_lyso[batch].SetMarkerColor(50+9*batch)
+    if g_LO_avg_vs_lyso[batch].GetN() == 0: continue
+    g_LO_avg_vs_lyso[batch].SetLineColor(1+batch)
+    g_LO_avg_vs_lyso[batch].SetMarkerColor(1+batch)
     g_LO_avg_vs_lyso[batch].SetMarkerStyle(20)
     g_LO_avg_vs_lyso[batch].SetMarkerSize(1.)
     g_LO_avg_vs_lyso[batch].Draw('P,same')
 c.Print('%s/g_LO_vs_lyso.png'%plotDir)
 
+
 c = ROOT.TCanvas('c_maxRes_vs_lyso','',800,700)
 ROOT.gPad.SetGridx()
 ROOT.gPad.SetGridy()
-hpad = ROOT.gPad.DrawFrame(100000.,0.03,106000.,0.1)
+hpad = ROOT.gPad.DrawFrame(100000.,0.03,108000.,0.1)
 hpad.SetTitle(';LYSO barcode;max. peak resolution')
 hpad.Draw()
 for batch in range(9):
-    g_peak_res_max_vs_lyso[batch].SetLineColor(50+9*batch)
-    g_peak_res_max_vs_lyso[batch].SetMarkerColor(50+9*batch)
+    if g_peak_res_max_vs_lyso[batch].GetN() == 0: continue
+    g_peak_res_max_vs_lyso[batch].SetLineColor(1+batch)
+    g_peak_res_max_vs_lyso[batch].SetMarkerColor(1+batch)
     g_peak_res_max_vs_lyso[batch].SetLineWidth(2)
     g_peak_res_max_vs_lyso[batch].Draw('P,same')
 c.Print('%s/g_peak_res_max_vs_lyso.png'%plotDir)

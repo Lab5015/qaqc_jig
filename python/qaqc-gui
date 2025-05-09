@@ -263,12 +263,6 @@ def reanalyze_data():
             module_status[i].config(text="Failed integration")
             continue
         module_status[i].config(text="Integration successful!")
-
-        cmd = ['rm', filename]
-        if run_command(cmd,progress_bar=i):
-           module_status[i].config(text="Failed to remove file")
-           continue
-        module_status[i].config(text="Raw file removed!")
         
 def get_vbd():
    # Make sure they entered the barcodes first.
@@ -586,14 +580,21 @@ def take_data():
       
       module_status[i].config(text="Integration successful!")
       
+      cmd = ['rm', filename]
+      if run_command(cmd,progress_bar=i):
+         module_status[i].config(text="Failed to remove file")
+         continue
+      module_status[i].config(text="Raw file removed!")
+      
       filename = filename_template(data_path=run_path, barcode=barcode, label=label.get())+'_integrals.hdf5'
       
       entry.insert(tk.END, "Analyzing data for module %i\n" % int(barcode))
       entry.yview(tk.END)
       entry.update()
       
-      out_filename = "%s_analysis.root" % root
-      cmd = [ANALYZE_WAVEFORMS_PROGRAM,'-o',out_filename,'--barcode',barcode,'--slot',i,'--sourceType','sodium','--print-pdfs','/data/html/PRODUCTION/',filename]
+      out_filename = "%s_analysis_calib.root" % root
+      cmd = [ANALYZE_WAVEFORMS_PROGRAM,'-o',out_filename,'--barcode',barcode,'--slot',i,'--sourceType','sodium','--print-pdfs','/data/html/PRODUCTION_CALIB/',filename]
+      #cmd = [ANALYZE_WAVEFORMS_PROGRAM,'-o',out_filename,'--barcode',barcode,'--slot',i,'--sourceType','cesium','--print-pdfs','/data/html/PRODUCTION_CALIB/',filename]
       
       if run_command(cmd,progress_bar=i):
          module_status[i].config(text="Failed analysis")
@@ -1049,11 +1050,11 @@ if __name__ == '__main__':
         else:
             power_off_button['state'] = tk.NORMAL
         power_off_button.pack()
-    
+
     if USE_CHILLER:
         mychiller = Chillers.Chiller()
         state = mychiller.getState()
-        
+
         chiller_pid = -1
         if os.path.isfile(os.path.expanduser('~/.setBoxTemp_PID.pid')):
             out = Popen(['cat',os.path.expanduser('~/.setBoxTemp_PID.pid')],stdout=subprocess.PIPE)
@@ -1104,7 +1105,7 @@ if __name__ == '__main__':
     frame_chiller.grid(row=1,column=2)
     frame_stepper.grid(row=2,column=2)
     #frame_temps.grid(row=1,column=2)
-    
+
     load()
 
     root.mainloop()

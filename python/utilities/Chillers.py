@@ -9,13 +9,15 @@ if BAC == "CERN":
     
 if BAC == "Milano":
     sys.path.append('/home/cmsdaq/Programs/Lab5015Utils')
-    from Lab5015_utils import LAUDAChiller
+    #from Lab5015_utils import LAUDAChiller
+    from Lab5015_utils import SMChiller
 
 
 class Chiller:
     def __init__(self):
         if BAC == "Milano":
-            self.chiller = LAUDAChiller(portname='tcp://pc-mtd-mib01:5050')
+            #self.chiller = LAUDAChiller(portname='tcp://pc-mtd-mib01:5050')
+            self.chiller = SMChiller(portname='tcp://pc-mtd-mib01:5050')
         if BAC == "CERN":
             print()
             
